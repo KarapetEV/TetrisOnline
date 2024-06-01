@@ -1,0 +1,102 @@
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { Pool } = require('pg');
+const fs = require('fs');
+const https = require('https');
+
+const app = express();
+const port = 8765;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+
+const pool = new Pool({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'tetris_online',
+    password: 'postgres',
+    port: 5432,
+});
+
+const secret = process.env.JWT_SECRET;
+
+app.post('/api/auth/register', async (req, res) => {
+    const { login, password, email } = req.body;
+
+    console.log('Register request received:', req.body);
+
+    try {
+        const client = await pool.connect();
+        const existingUser = await client.query('SELECT * FROM users WHERE login = $1 OR email = $2', [login, email]);
+        
+        if (existingUser.rows.length > 0) {
+            client.release();
+            console.log(`Registration failed for ${login}: User already exists.`);
+            return res.status(400).json({ message: 'Login or email already exists' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const result = await client.query(
+            'INSERT INTO users (login, password, email, role_id, reg_date) VALUES ($1, $2, $3, (SELECT id FROM roles WHERE role_name = $4), NOW()) RETURNING id',
+            [login, hashedPassword, email, 'player']
+          );
+        client.release();
+
+        const userId = result.rows[0].id;
+        const token = jwt.sign({ userId }, jwtSecret, { expiresIn: '1h' });
+        onsole.log(`User registered successfully: ${login}`);
+        res.json({ token });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    const { login, password } = req.body;
+
+    try {
+        const client = await pool.connect();
+        const result = await client.query('SELECT * FROM users WHERE login = $1', [login]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            console.log(`Login failed for ${login}: User not found.`);
+            return res.status(400).json({ message: 'Invalid login or password' });
+        }
+
+        const user = result.rows[0];
+        // Преобразование байтового массива в строку
+        const hashedPassword = Buffer.from(user.password).toString('utf8');
+        const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+
+        if (!isPasswordValid) {
+            console.log(`Login failed for ${login}: Invalid password.`);
+            return res.status(400).json({ message: 'Invalid login or password' });
+        }
+
+        await client.query('UPDATE users SET online_status = true WHERE login = $1', [login]);
+        client.release();
+
+        const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: '1h' });
+        console.log(`User logged in successfully: ${login}`);
+        res.json({ token });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+const privateKey = fs.readFileSync('private.key', 'utf8');
+const certificate = fs.readFileSync('certificate.crt', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
+
+const httpsServer = https.createServer(credentials, app);
+
+httpsServer.listen(port, () => {
+    console.log(`Server is running on https://localhost:${port}`);
+});

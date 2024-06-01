@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris Online</title>
+</head>
+<body>
+    <header>
+        <button id="sign-in-button">Sign in</button>
+    </header>
+    <main>
+        <div id="auth-form" style="display: none;">
+            <h2>Authorization</h2>
+            <div>
+                <label for="login">Your login:</label>
+                <input type="text" id="login">
+            </div>
+            <div>
+                <label for="password">Your password:</label>
+                <input type="password" id="password">
+            </div>
+            <div>
+                <a id="register-link">Sign up</a>
+                <a id="forgot-password-link">Forgot password</a>
+            </div>
+            <div>
+                <button id="login-button">Sign in</button>
+                <button id="cancel-button">Cancel</button>
+            </div>
+        </div>
+        <div id="register-form" style="display: none;">
+            <h2>Registration</h2>
+            <div>
+                <label for="reg-login">Your login:</label>
+                <input type="text" id="reg-login">
+            </div>
+            <div>
+                <label for="reg-password">Your password:</label>
+                <input type="password" id="reg-password">
+            </div>
+            <div>
+                <label for="reg-password-confirm">Repeat password:</label>
+                <input type="password" id="reg-password-confirm">
+            </div>
+            <div>
+                <label for="reg-email">Your e-mail:</label>
+                <input type="email" id="reg-email">
+            </div>
+            <div>
+                <button id="register-button">Sign up</button>
+                <button id="reg-cancel-button">Cancel</button>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

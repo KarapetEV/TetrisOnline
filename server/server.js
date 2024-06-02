@@ -6,6 +6,8 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const https = require('https');
 
+const { findUser, createUser, updateUserOnlineStatus } = require('./db');
+
 const app = express();
 const port = 8765;
 
@@ -13,15 +15,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'tetris_online',
-    password: 'postgres',
-    port: 5432,
-});
-
-const secret = process.env.JWT_SECRET;
+const jwtSecret = process.env.JWT_SECRET;
 
 app.post('/api/auth/register', async (req, res) => {
     const { login, password, email } = req.body;
@@ -29,26 +23,17 @@ app.post('/api/auth/register', async (req, res) => {
     console.log('Register request received:', req.body);
 
     try {
-        const client = await pool.connect();
-        const existingUser = await client.query('SELECT * FROM users WHERE login = $1 OR email = $2', [login, email]);
+        const existingUser = await findUser(login, email);
         
-        if (existingUser.rows.length > 0) {
-            client.release();
+        if (existingUser.length > 0) {
             console.log(`Registration failed for ${login}: User already exists.`);
             return res.status(400).json({ message: 'Login or email already exists' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await client.query(
-            'INSERT INTO users (login, password, email, role_id, reg_date) VALUES ($1, $2, $3, (SELECT id FROM roles WHERE role_name = $4), NOW()) RETURNING id',
-            [login, hashedPassword, email, 'player']
-          );
-        client.release();
-
-        const userId = result.rows[0].id;
-        const token = jwt.sign({ userId }, jwtSecret, { expiresIn: '1h' });
-        onsole.log(`User registered successfully: ${login}`);
-        res.json({ token });
+        const newUser = await createUser(login, password, email);
+        const token = jwt.sign({ userId: newUser.id }, jwtSecret, { expiresIn: '1h' });
+        res.status(201).json({ token });
+        console.log(`User registered successfully: ${login}`);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal server error' });

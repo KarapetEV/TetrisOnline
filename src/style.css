@@ -2,7 +2,10 @@ body {
     font-family: Arial, sans-serif;
     background-image: url('./assets/bg_tetris.png');
     background-size: cover;
+    background-repeat: no-repeat;
     background-position: center;
+    height: 100vh;
+    margin: 0;
 }
 
 header {
@@ -13,12 +16,14 @@ header {
 }
 
 header button {
-    padding: 10px 20px;
+    padding: 5px 10px;
+    font-size: 14px;
     background-color: #007bff;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    width: 80px;
 }
 
 header button:hover {

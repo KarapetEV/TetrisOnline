@@ -1,6 +1,7 @@
 import './style.css';
 
 document.addEventListener('DOMContentLoaded', () => {
+    const header = document.getElementById('header');
     const signInButton = document.getElementById('sign-in-button');
     const authForm = document.getElementById('auth-form');
     const registerForm = document.getElementById('register-form');
@@ -12,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const regCancelButton = document.getElementById('reg-cancel-button');
 
     signInButton.addEventListener('click', () => {
+        header.style.display = 'none';
         authForm.style.display = 'block';
     });
 

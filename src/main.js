@@ -1,8 +1,28 @@
 import './style.css';
+import logoImage from './assets/header.png';
 
 document.addEventListener('DOMContentLoaded', () => {
+    const headerElement = document.getElementById('header');
+    const headerLogo = document.createElement('img');
+    headerLogo.src = logoImage; // Используйте импортированное изображение
+    headerLogo.alt = 'Логотип';
+    headerLogo.classList.add('logo');
+
+    // Создаем контейнер для логотипа и добавляем его в шапку
+    const logoContainer = document.createElement('div');
+    logoContainer.classList.add('logo-container');
+    logoContainer.appendChild(headerLogo);
+
+    // Создаем контейнер для кнопок, если он еще не создан
+    const buttonsContainer = document.getElementById('buttons-container');
+    buttonsContainer.classList.add('buttons-container');
+  
+    // Добавляем контейнеры в шапку
+    headerElement.prepend(logoContainer); // Используйте prepend для добавления в начало header
+
     const header = document.getElementById('header');
-    const signInButton = document.getElementById('sign-in-button');
+    const signInButton = document.getElementById('header-sign-in-button');
+    const signUpButton = document.getElementById('header-sign-up-button');
     const authForm = document.getElementById('auth-form');
     const registerForm = document.getElementById('register-form');
 
@@ -13,8 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const regCancelButton = document.getElementById('reg-cancel-button');
 
     signInButton.addEventListener('click', () => {
-        header.style.display = 'none';
+        buttonsContainer.style.visibility = 'hidden';
         authForm.style.display = 'block';
+    });
+
+    signUpButton.addEventListener('click', () => {
+        buttonsContainer.style.visibility = 'hidden';
+        registerForm.style.display = 'block';
     });
 
     registerLink.addEventListener('click', () => {
@@ -24,6 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cancelButton.addEventListener('click', () => {
         authForm.style.display = 'none';
+        header.style.display = 'flex';
+        buttonsContainer.style.visibility = 'visible';
     });
 
     regCancelButton.addEventListener('click', () => {
@@ -35,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const login = document.getElementById('login').value;
         const password = document.getElementById('password').value;
 
-        const response = await fetch('https://localhost:8765/api/auth/login', {
+        const response = await fetch('http://localhost:8765/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -68,13 +95,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const response = await fetch('https://localhost:8765/api/auth/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ login, password, email })
-        });
+        try {
+            const response = await fetch('http://localhost:8765/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ login, password, email })
+            });
+        } catch (error) {
+            console.error('Error during fetch:', error);
+            alert('An error occurred while trying to register. Please try again later.');
+        }
 
         if (response.ok) {
             const data = await response.json();

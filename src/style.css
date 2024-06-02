@@ -1,67 +1,98 @@
 body {
+    display: flex;
+    flex-direction: column;
     font-family: Arial, sans-serif;
     background-image: url('./assets/bg_tetris.png');
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
 }
 
 header {
     display: flex;
-    justify-content: flex-end;
-    padding: 10px;
+    justify-content: space-between; /* Распределяет пространство между элементами */
+    align-items: center; /* Выравнивает элементы по центру по вертикали */
+    padding: 5px 10px;
     background: rgba(0, 0, 0, 0.5);
 }
 
+.header-block, .logo-container, .buttons-container {
+    flex: 1; /* Дает каждому блоку одинаковую ширину */
+    display: flex;
+    justify-content: center; /* Центрирует содержимое блоков */
+    align-items: center; /* Выравнивает содержимое блоков по центру по вертикали */
+}
+
+.logo-container {
+    display: flex;
+    justify-content: center; /* Центрирует логотип внутри контейнера */
+    align-items: center;
+    flex: 0;
+    order: 1;
+}
+
+.buttons-container {
+    display: flex;
+    flex-direction: column; /* Ставим кнопки друг под другом */
+    align-items: flex-end; /* Выравнивает кнопки по правому краю */
+    gap: 5px; /* Добавляет промежуток между кнопками */
+    order: 2;
+}
+
+/* Стиль для логотипа, если он добавляется через JavaScript */
+.logo {
+    max-width: 700px; /* Убедитесь, что логотип не выходит за пределы контейнера */
+    height: auto; /* Сохраняем пропорции изображения */
+}
+
 header button {
-    padding: 5px 10px;
-    font-size: 14px;
+    padding: 4px 8px;
+    font-size: 13px;
     background-color: #007bff;
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     width: 80px;
+    margin-top: 5px; /* Отступ сверху для кнопки "Sign up" */
+    margin-bottom: 5px; /* Уменьшаем отступ снизу для кнопки */
 }
 
 header button:hover {
     background-color: #0056b3;
 }
 
-#auth-form, #register-form {
-    width: 300px;
-    margin: 100px auto;
-    padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    background-color: #f9f9f9;
-}
-
 h2 {
+    margin-bottom: 40px; /* Добавляем отступ снизу для заголовка */
     text-align: center;
 }
 
 div {
-    margin-bottom: 15px;
+    width: 100%; /* Задаем ширину div, чтобы label и input располагались на всю ширину формы */
+    display: flex; /* Используем flexbox для выравнивания label и input */
+    justify-content: space-between; /* Распределяем пространство между label и input */
+    align-items: center; /* Выравниваем элементы по центру */
+    margin-bottom: 10px; /* Отступ снизу для каждого div */
 }
 
 label {
-    display: inline-block;
-    width: 120px;
+    flex: 1;
+    margin-right: 0px; /* Добавляем отступ справа для label */
 }
 
 input[type="text"], input[type="password"], input[type="email"] {
-    width: calc(100% - 130px);
-    padding: 5px;
+    flex: 2;
+    flex-grow: 1; /* Input занимает все доступное пространство */
+    margin-left: 0px; /* Отступ слева от label */
+    font-size: 15px;
 }
 
 button {
-    width: 48%;
+    width: 120px;
     padding: 10px;
-    margin: 5px 1%;
+    margin: 10px 1%;
     border: none;
     border-radius: 5px;
     background-color: #007bff;
@@ -73,12 +104,33 @@ button:hover {
     background-color: #0056b3;
 }
 
-#register-link, #forgot-password-link {
-    margin-right: 10px;
-    color: #007bff;
-    cursor: pointer;
+#auth-form, #register-form {
+    width: 350px;
+    margin: 150px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    /* background-color: #f9f9f9; */
+    background-color: #E0FFFF;
+    display: flex; /* Используем flexbox для внутренних элементов */
+    flex-direction: column; /* Элементы располагаются вертикально */
+    align-items: center; /* Центрирование элементов по горизонтали */
 }
 
 #register-link:hover, #forgot-password-link:hover {
     text-decoration: underline;
+}
+
+#register-link, #forgot-password-link {
+    color: #007bff;
+    flex-basis: 48%; /* Задаем базовую ширину для ссылок, чтобы они занимали примерно половину доступного пространства */
+    text-align: center; /* Центрируем текст внутри ссылок */
+    cursor: pointer;
+}
+
+/* Стилизация ссылок и кнопок */
+#auth-form div:last-child, #register-form div:last-child {
+    display: flex;
+    justify-content: space-around; /* Располагаем кнопки и ссылки на равном расстоянии друг от друга */
 }

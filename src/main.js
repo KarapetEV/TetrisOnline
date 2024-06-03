@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const login = document.getElementById('login').value;
         const password = document.getElementById('password').value;
 
-        const response = await fetch('http://localhost:8765/api/auth/login', {
+        const response = await fetch('https://localhost:8765/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -96,25 +96,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('http://localhost:8765/api/auth/register', {
+            const response = await fetch('https://localhost:8765/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ login, password, email })
             });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                window.location.href = '/game';
+            } else {
+                const data = await response.json();
+                alert(data.message);
+            }
         } catch (error) {
             console.error('Error during fetch:', error);
             alert('An error occurred while trying to register. Please try again later.');
-        }
-
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem('token', data.token);
-            window.location.href = '/game';
-        } else {
-            const data = await response.json();
-            alert(data.message);
         }
     });
 });

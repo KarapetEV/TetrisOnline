@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
@@ -76,8 +78,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-const privateKey = fs.readFileSync('private.key', 'utf8');
-const certificate = fs.readFileSync('certificate.crt', 'utf8');
+const privateKey = fs.readFileSync('./certs/private.key', 'utf8');
+const certificate = fs.readFileSync('./certs/certificate.crt', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 const httpsServer = https.createServer(credentials, app);

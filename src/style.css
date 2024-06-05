@@ -82,11 +82,13 @@ label {
     margin-right: 0px; /* Добавляем отступ справа для label */
 }
 
-input[type="text"], input[type="password"], input[type="email"] {
+input {
     flex: 2;
     flex-grow: 1; /* Input занимает все доступное пространство */
     margin-left: 0px; /* Отступ слева от label */
     font-size: 15px;
+    box-sizing: border-box; /* Включаем ширину обводки и padding в общий размер элемента */
+    border: 1px solid #ccc; /* Задаем стандартную обводку */
 }
 
 button {
@@ -111,7 +113,6 @@ button:hover {
     border: 1px solid #ccc;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    /* background-color: #f9f9f9; */
     background-color: #E0FFFF;
     display: flex; /* Используем flexbox для внутренних элементов */
     flex-direction: column; /* Элементы располагаются вертикально */
@@ -134,3 +135,18 @@ button:hover {
     display: flex;
     justify-content: space-around; /* Располагаем кнопки и ссылки на равном расстоянии друг от друга */
 }
+
+.error-message {
+    color: red;
+    font-size: 0.8em;
+    height: 20px;
+    margin-top: 10px;
+    text-align: center; /* Центрирование текста */
+    width: 100%; /* Задаем ширину, чтобы текст мог центрироваться внутри этого блока */
+    display: block; /* Элемент отображается как блочный, чтобы занять всю ширину контейнера */
+    margin-bottom: 10px; /* Добавляем нижний отступ для отделения от полей ввода */
+  }
+  
+  .input-error {
+    border: 1px solid red;
+  }

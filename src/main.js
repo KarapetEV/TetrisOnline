@@ -80,18 +80,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     registerButton.addEventListener('click', async () => {
-        const login = document.getElementById('reg-login').value;
-        const password = document.getElementById('reg-password').value;
-        const passwordConfirm = document.getElementById('reg-password-confirm').value;
-        const email = document.getElementById('reg-email').value;
+        const loginInput = document.getElementById('reg-login');
+        const login = loginInput.value;
+        const passwordInput = document.getElementById('reg-password');
+        const password = passwordInput.value;
+        const passwordConfirmInput = document.getElementById('reg-password-confirm');
+        const emailInput = document.getElementById('reg-email');
+        const email = emailInput.value;
+        const errorMessageDiv = document.getElementById('register-error-message');
 
-        if (!login || !password || !passwordConfirm || !email) {
-            alert('All fields are required');
+        // Очистить предыдущие ошибки
+        [loginInput, passwordInput, passwordConfirmInput, emailInput].forEach(input => {
+            input.classList.remove('input-error');
+        });
+        errorMessageDiv.textContent = '';
+
+        // Проверка на заполненность полей
+        if (!loginInput.value || !passwordInput.value || !passwordConfirmInput.value || !emailInput.value) {
+            errorMessageDiv.textContent = 'All fields are required';
+            [loginInput, passwordInput, passwordConfirmInput, emailInput].forEach(input => {
+                if (!input.value) {
+                    input.classList.add('input-error');
+                }
+            });
             return;
         }
 
-        if (password !== passwordConfirm) {
-            alert('Passwords do not match');
+        // Проверка на совпадение паролей
+        if (passwordInput.value !== passwordConfirmInput.value) {
+            errorMessageDiv.textContent = 'Passwords do not match';
+            [passwordInput, passwordConfirmInput].forEach(input => {
+                input.classList.add('input-error');
+            });
             return;
         }
 

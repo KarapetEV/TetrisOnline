@@ -8,7 +8,7 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const https = require('https');
 
-const { findUser, createUser, updateUserOnlineStatus } = require('./db');
+const { findUser, createUser, updateUserOnlineStatus, validateUser } = require('./db');
 
 const app = express();
 const port = 8765;
@@ -35,6 +35,7 @@ app.post('/api/auth/register', async (req, res) => {
         const newUser = await createUser(login, password, email);
         const token = jwt.sign({ userId: newUser.id }, jwtSecret, { expiresIn: '1h' });
         res.status(201).json({ token });
+        updateUserOnlineStatus(login, true);
         console.log(`User registered successfully: ${login}`);
     } catch (err) {
         console.error(err);
@@ -46,32 +47,18 @@ app.post('/api/auth/login', async (req, res) => {
     const { login, password } = req.body;
 
     try {
-        const client = await pool.connect();
-        const result = await client.query('SELECT * FROM users WHERE login = $1', [login]);
-
-        client.release();
-
-        if (result.rows.length === 0) {
-            console.log(`Login failed for ${login}: User not found.`);
-            return res.status(400).json({ message: 'Invalid login or password' });
-        }
-
-        const user = result.rows[0];
-        // Преобразование байтового массива в строку
-        const hashedPassword = Buffer.from(user.password).toString('utf8');
-        const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+        const { isPasswordValid, user } = await validateUser(login, password);
 
         if (!isPasswordValid) {
-            console.log(`Login failed for ${login}: Invalid password.`);
+            console.log(`Login failed for ${login}: Invalid login or password.`);
             return res.status(400).json({ message: 'Invalid login or password' });
         }
 
-        await client.query('UPDATE users SET online_status = true WHERE login = $1', [login]);
-        client.release();
-
+        // Если пароль валиден, создаем токен и отправляем его пользователю
         const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: '1h' });
-        console.log(`User logged in successfully: ${login}`);
         res.json({ token });
+        updateUserOnlineStatus(login, true);
+        console.log(`User logged in successfully: ${login}`);
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal server error' });

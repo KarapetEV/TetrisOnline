@@ -42,8 +42,30 @@ async function updateUserOnlineStatus(login, onlineStatus) {
     }
 }
 
+async function validateUser(login, password) {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT * FROM users WHERE login = $1', [login]);
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            let hashedPassword = user.password;
+            if (typeof hashedPassword !== 'string') {
+                // Если hashedPassword не строка, преобразуйте её в строку
+                // Например, если hashedPassword является объектом с полем toString
+                hashedPassword = hashedPassword.toString();
+            }
+            const isPasswordValid = await bcrypt.compare(password, hashedPassword);
+            return { isPasswordValid, user };
+        }
+        return { isPasswordValid: false };
+    } finally {
+        client.release();
+    }
+}
+
 module.exports = {
     findUser,
     createUser,
     updateUserOnlineStatus,
+    validateUser,
 };

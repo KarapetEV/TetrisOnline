@@ -11,40 +11,89 @@ body {
 }
 
 header {
+    position: relative; /* Делаем header относительно позиционированным контейнером */
+    justify-content: space-between; /* Для размещения кнопок и пустого блока */
     display: flex;
-    justify-content: space-between; /* Распределяет пространство между элементами */
-    align-items: center; /* Выравнивает элементы по центру по вертикали */
+    justify-content: space-between; /* Для размещения кнопок и пустого блока */
+    align-items: center; /* Центрирование по вертикали */
     padding: 5px 10px;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.7);
+    height: 80px;
 }
 
-.header-block, .logo-container, .buttons-container {
-    flex: 1; /* Дает каждому блоку одинаковую ширину */
-    display: flex;
-    justify-content: center; /* Центрирует содержимое блоков */
-    align-items: center; /* Выравнивает содержимое блоков по центру по вертикали */
+.header-block {
+    flex: 1; /* Занимает все доступное пространство слева */
+}
+
+header::before {
+    content: "";
+    flex: 1;
+}
+
+.header-block, .buttons-container, .logo-container {
+    width: auto; /* Отменяем глобальное правило width: 100%; */
+    margin-bottom: 0; /* Отменяем глобальный отступ снизу */
+    /* Восстанавливаем нужные стили для этих элементов */
 }
 
 .logo-container {
+    position: absolute; /* Абсолютное позиционирование для центрирования */
+    left: 50%; /* Смещаем на 50% ширины от начала контейнера */
     display: flex;
-    justify-content: center; /* Центрирует логотип внутри контейнера */
+    justify-content: center;
     align-items: center;
-    flex: 0;
-    order: 1;
-}
-
-.buttons-container {
-    display: flex;
-    flex-direction: column; /* Ставим кнопки друг под другом */
-    align-items: flex-end; /* Выравнивает кнопки по правому краю */
-    gap: 5px; /* Добавляет промежуток между кнопками */
-    order: 2;
+    top: 50%;
+    transform: translate(-50%, -50%); /* Центрирование и по горизонтали, и по вертикали */
+    z-index: 1; /* Убедитесь, что z-index логотипа не выше, чем у кнопок */
 }
 
 /* Стиль для логотипа, если он добавляется через JavaScript */
 .logo {
     max-width: 700px; /* Убедитесь, что логотип не выходит за пределы контейнера */
     height: auto; /* Сохраняем пропорции изображения */
+}
+
+.buttons-container {
+    display: flex;
+    flex-direction: column; /* Если кнопки должны располагаться вертикально */
+    justify-content: center; /* Центрирование кнопок по вертикали внутри контейнера */
+    align-items: flex-end; /* Выравнивание кнопок по правому краю */
+    z-index: 2; /* Устанавливаем z-index выше, чем у других элементов */
+}
+
+.sign-buttons-container {
+    display: flex;
+    flex-direction: column; /* Ставим кнопки друг под другом */
+    align-items: flex-end; /* Выравнивает кнопки по правому краю */
+    gap: 3px; /* Добавляет промежуток между кнопками */
+    order: 2;
+}
+
+.logout-button-container {
+    display: none; /* Изначально скрыт */
+    width: 120px;
+    flex-direction: column; /* Ставим кнопки друг под другом */
+    gap: 3px; /* Добавляет промежуток между кнопками */
+    order: 2;
+    justify-content: center; /* Центрирование содержимого по вертикали */
+    align-items: flex-end; /* Выравнивание содержимого по правому краю */
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 3px; /* Отступ от кнопки выхода */
+    color: aqua;
+}
+
+.user-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-image: url('./assets/avatar.jpg'); /* Путь к изображению аватара */
+    background-size: cover;
+    border: 2px solid green; /* Зеленая граница */
+    margin-right: 3px; /* Отступ от логина пользователя */
 }
 
 header button {
@@ -150,3 +199,25 @@ button:hover {
   .input-error {
     border: 1px solid red;
   }
+
+  #online-players-panel {
+    position: fixed; /* Фиксированное положение справа */
+    right: 0;
+    width: 180px; /* Ширина панели */
+    height: 100%; /* Высота панели */
+    background-color: rgba(0, 0, 0, 0.5); /* Цвет фона */
+    overflow-y: auto; /* Прокрутка, если содержимое не помещается */
+    padding: 10px;
+}
+
+.player-button {
+    display: block; /* Блочный элемент */
+    width: calc(100% - 20px); /* Ширина с учетом padding */
+    margin-bottom: 10px; /* Отступ снизу */
+    padding: 10px;
+    background-color: #ddd; /* Цвет фона кнопки */
+    border: none;
+    border-radius: 10px; /* Закругленные углы */
+    cursor: pointer;
+    text-align: center;
+}

@@ -8,7 +8,7 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const https = require('https');
 
-const { findUser, createUser, updateUserOnlineStatus, validateUser } = require('./db');
+const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers } = require('./db');
 
 const app = express();
 const port = 8765;
@@ -34,8 +34,8 @@ app.post('/api/auth/register', async (req, res) => {
 
         const newUser = await createUser(login, password, email);
         const token = jwt.sign({ userId: newUser.id }, jwtSecret, { expiresIn: '1h' });
-        res.status(201).json({ token });
-        updateUserOnlineStatus(login, true);
+        res.status(201).json({ token, userId: newUser.id });
+        // updateUserOnlineStatus(login, true);
         console.log(`User registered successfully: ${login}`);
     } catch (err) {
         console.error(err);
@@ -56,8 +56,8 @@ app.post('/api/auth/login', async (req, res) => {
 
         // Если пароль валиден, создаем токен и отправляем его пользователю
         const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: '1h' });
-        res.json({ token });
-        updateUserOnlineStatus(login, true);
+        res.json({ token, userId: user.id });
+        // updateUserOnlineStatus(login, true);
         console.log(`User logged in successfully: ${login}`);
     } catch (err) {
         console.error(err);
@@ -70,7 +70,53 @@ const certificate = fs.readFileSync('./certs/certificate.crt', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 const httpsServer = https.createServer(credentials, app);
-
-httpsServer.listen(port, () => {
+const io = require('socket.io')(httpsServer, {
+    cors: {
+      origin: "*", // Укажите здесь ваш домен или '*', если хотите разрешить все домены
+      methods: ["GET", "POST"]
+    }
+  });
+  
+  const userSockets = {};
+  
+  io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+    // Функция для отправки списка онлайн игроков
+    function sendOnlinePlayers() {
+        let onlinePlayers = getAllOnlinePlayers(); // Получаем список онлайн игроков
+        // Убедитесь, что onlinePlayers действительно является массивом
+        if (!Array.isArray(onlinePlayers)) {
+            console.error('getAllOnlinePlayers did not return an array');
+            onlinePlayers = []; // Используем пустой массив, если результат не массив
+        }
+        io.emit('onlinePlayers', onlinePlayers); // Отправляем список всем подключенным клиентам
+    }
+    
+    // Вызываем функцию при подключении нового пользователя и при других событиях, которые могут изменить статус онлайн
+    sendOnlinePlayers();
+  
+    socket.on('login', async (userId) => {
+      // Сохраняем соответствие между socket.id и userId
+      userSockets[socket.id] = userId;
+      // Обновляем статус пользователя на онлайн
+      await updateUserOnlineStatus(userId, true);
+    });
+  
+    socket.on('disconnect', async () => {
+        console.log('User disconnected:', socket.id);
+        // Получаем userId для socket.id
+        const userId = userSockets[socket.id];
+        if (userId) {
+            // Обновляем статус пользователя на офлайн
+            await updateUserOnlineStatus(userId, false);
+            // Удаляем запись из объекта соответствия
+            delete userSockets[socket.id];
+        }
+    });
+ 
+    // Другие обработчики событий...
+  });
+  
+  httpsServer.listen(port, () => {
     console.log(`Server is running on https://localhost:${port}`);
-});
+  });

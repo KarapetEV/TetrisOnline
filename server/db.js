@@ -33,12 +33,26 @@ async function createUser(login, password, email) {
     }
 }
 
-async function updateUserOnlineStatus(login, onlineStatus) {
+async function updateUserOnlineStatus(userId, onlineStatus) {
     const client = await pool.connect();
     try {
-        await client.query('UPDATE users SET online_status = $2 WHERE login = $1', [login, onlineStatus]);
+        await client.query('UPDATE users SET online_status = $2 WHERE id = $1', [userId, onlineStatus]);
     } finally {
         client.release();
+    }
+}
+
+async function getAllOnlinePlayers() {
+    try {
+        const result = await pool.query('SELECT id, login FROM users WHERE online_status = true');
+        if (result.rows.length > 0) {
+            return result.rows;
+        } else {
+            return [];
+        }
+    } catch (err) {
+        console.error('Error fetching online players:', err);
+        return [];
     }
 }
 
@@ -68,4 +82,5 @@ module.exports = {
     createUser,
     updateUserOnlineStatus,
     validateUser,
+    getAllOnlinePlayers
 };

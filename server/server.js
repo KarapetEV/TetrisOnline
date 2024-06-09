@@ -101,6 +101,17 @@ const io = require('socket.io')(httpsServer, {
       // Обновляем статус пользователя на онлайн
       await updateUserOnlineStatus(userId, true);
     });
+
+    socket.on('logout', async (userId) => {
+        console.log('User going offline:', userId);
+        if (userId) {
+            await updateUserOnlineStatus(userId, false);
+            // Удаляем запись из объекта соответствия, если используется
+            delete userSockets[socket.id];
+        } else {
+            console.log('No userId provided for logout event');
+        }
+    });
   
     socket.on('disconnect', async () => {
         console.log('User disconnected:', socket.id);

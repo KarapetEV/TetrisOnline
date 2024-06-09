@@ -62,7 +62,7 @@ header::before {
 }
 
 .sign-buttons-container {
-    display: flex;
+    display: none;
     flex-direction: column; /* Ставим кнопки друг под другом */
     align-items: flex-end; /* Выравнивает кнопки по правому краю */
     gap: 3px; /* Добавляет промежуток между кнопками */
@@ -71,7 +71,6 @@ header::before {
 
 .logout-button-container {
     display: none; /* Изначально скрыт */
-    width: 120px;
     flex-direction: column; /* Ставим кнопки друг под другом */
     gap: 3px; /* Добавляет промежуток между кнопками */
     order: 2;
@@ -93,7 +92,9 @@ header::before {
     background-image: url('./assets/avatar.jpg'); /* Путь к изображению аватара */
     background-size: cover;
     border: 2px solid green; /* Зеленая граница */
-    margin-right: 3px; /* Отступ от логина пользователя */
+    margin-right: 1px; /* Отступ от логина пользователя */
+    margin-top: 1px;
+    margin-bottom: 2px;
 }
 
 header button {

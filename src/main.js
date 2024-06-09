@@ -7,18 +7,22 @@ import io from 'socket.io-client';
 // Установка соединения WebSocket
 const socket = io('https://localhost:8765');
 
-document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
-});
+window.onload = function() {
+    // Проверяем статус авторизации и устанавливаем UI
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'; // Преобразуем строку в boolean
+    initializeHeader(isLoggedIn);
+    setupEventHandlers();
+    restoreUIState(isLoggedIn);
+    setupWebSocket(); // Установка WebSocket соединения и обработчиков событий
+};
 
-function initializeApp() {
-
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    const userId = localStorage.getItem('userId'); // Получаем userId из localStorage
-
+function initializeHeader(isLoggedIn) {
+    // Получаем элемент шапки
     const headerElement = document.getElementById('header');
+
+    // Создаем изображение логотипа
     const headerLogo = document.createElement('img');
-    headerLogo.src = logoImage;
+    headerLogo.src = logoImage; // Путь к изображению логотипа
     headerLogo.alt = 'logo';
     headerLogo.classList.add('logo');
 
@@ -26,249 +30,348 @@ function initializeApp() {
     const logoContainer = document.createElement('div');
     logoContainer.classList.add('logo-container');
     logoContainer.appendChild(headerLogo);
-    
-    // Добавляем контейнеры в шапку
-    headerElement.prepend(logoContainer); // Используйте prepend для добавления в начало header
 
-    
     // Создаем контейнер для кнопок
-    const buttonsContainer = document.getElementById('buttons-container');
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.id = 'buttons-container';
     buttonsContainer.classList.add('buttons-container');
 
-    const signInButton = document.getElementById('header-sign-in-button');
-    const signUpButton = document.getElementById('header-sign-up-button');
-    const logoutButton = document.getElementById('logout-button');
+    // Создаем кнопки входа и регистрации
+    const signInButton = createButton('header-sign-in-button', 'Sign in');
+    const signUpButton = createButton('header-sign-up-button', 'Sign up');
+    const logoutButton = createButton('logout-button', 'Logout');
 
-    showHeader(false);
+    // Создаем контейнеры для кнопок входа/регистрации и выхода
+    const signButtonsContainer = document.createElement('div');
+    signButtonsContainer.id = 'sign-buttons-container';
+    signButtonsContainer.classList.add('sign-buttons-container');
+    signButtonsContainer.appendChild(signInButton);
+    signButtonsContainer.appendChild(signUpButton);
 
-    const authForm = document.getElementById('auth-form');
-    const registerForm = document.getElementById('register-form');
+    const logoutButtonContainer = document.createElement('div');
+    logoutButtonContainer.id = 'logout-button-container';
+    logoutButtonContainer.classList.add('logout-button-container');
 
-    const registerLink = document.getElementById('register-link');
-    const loginButton = document.getElementById('login-button');
-    const cancelButton = document.getElementById('cancel-button');
-    const registerButton = document.getElementById('register-button');
-    const regCancelButton = document.getElementById('reg-cancel-button');
+    // Создаем контейнер для информации о пользователе
+    const userInfo = document.createElement('div');
+    userInfo.id = 'user-info';
+    userInfo.classList.add('user-info');
 
-    console.log(isLoggedIn);
+    // Создаем элемент для аватара пользователя
+    const userAvatar = document.createElement('div');
+    userAvatar.classList.add('user-avatar');
 
-    if (isLoggedIn === 'true' && userId) {
-        showGameInterface(userId); // Восстанавливаем интерфейс с userId
+    // Создаем элемент span для отображения логина пользователя
+    const userLogin = document.createElement('span');
+    userLogin.id = 'user-login';
+    userLogin.textContent = 'Username'; // Значение по умолчанию, можно обновить позже
+
+    // Добавляем аватар и логин в контейнер userInfo
+    userInfo.appendChild(userAvatar);
+    userInfo.appendChild(userLogin);
+
+    // Добавляем userInfo и logoutButton в logoutButtonContainer
+    logoutButtonContainer.appendChild(userInfo);
+    logoutButtonContainer.appendChild(logoutButton);
+
+    // Добавляем контейнеры кнопок в контейнер кнопок
+    buttonsContainer.appendChild(signButtonsContainer);
+    buttonsContainer.appendChild(logoutButtonContainer);
+
+    // Добавляем контейнеры в шапку
+    headerElement.appendChild(logoContainer);
+    headerElement.appendChild(buttonsContainer);
+
+    updateHeader(isLoggedIn);
+}
+
+function updateHeader(isLoggedIn) {
+    const signButtonsContainer = document.getElementById('sign-buttons-container');
+    const logoutButtonContainer = document.getElementById('logout-button-container');
+
+    if (isLoggedIn) {
+        signButtonsContainer.style.display = 'none';
+        logoutButtonContainer.style.display = 'flex'; // Изначально скрыт
     } else {
-        showAuthButtons();
+        signButtonsContainer.style.display = 'flex';
+        logoutButtonContainer.style.display = 'none'; // Изначально скрыт
     }
+}
 
-    signInButton.addEventListener('click', () => {
-        buttonsContainer.style.visibility = 'hidden';
-        authForm.style.display = 'block';
-    });
+function createButton(id, text) {
+    const button = document.createElement('button');
+    button.id = id;
+    button.textContent = text;
+    return button;
+}
 
-    signUpButton.addEventListener('click', () => {
-        buttonsContainer.style.visibility = 'hidden';
-        registerForm.style.display = 'block';
-    });
-
-    logoutButton.addEventListener('click', () => {
-        logout(); // Вызываем функцию для очистки данных сессии и обновления интерфейса
-    });
-
-    // Обработка события закрытия страницы/вкладки
-    window.addEventListener('beforeunload', () => {
-        socket.disconnect();
-    });
-
-    registerLink.addEventListener('click', () => {
-        authForm.style.display = 'none';
-        registerForm.style.display = 'block';
-    });
-
-    cancelButton.addEventListener('click', () => {
-        authForm.style.display = 'none';
-        showHeader(false);
-    });
-
-    regCancelButton.addEventListener('click', () => {
-        registerForm.style.display = 'none';
-        authForm.style.display = 'block';
-    });
-
-    socket.on('onlinePlayers', (onlinePlayers) => {
-        console.log(onlinePlayers)
-        updateOnlinePlayers(onlinePlayers);
-    });
-
-    loginButton.addEventListener('click', async () => {
-        const login = document.getElementById('login').value;
-        const password = document.getElementById('password').value;
-
-        const response = await fetch('https://localhost:8765/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ login, password })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('userId', data.userId); // Сохраняем userId в localStorage
-            showGameInterface(data.userId);
-        } else {
-            alert('Invalid login or password');
-        }
-    });
-
-    registerButton.addEventListener('click', async () => {
-        const loginInput = document.getElementById('reg-login');
-        const login = loginInput.value;
-        const passwordInput = document.getElementById('reg-password');
-        const password = passwordInput.value;
-        const passwordConfirmInput = document.getElementById('reg-password-confirm');
-        const emailInput = document.getElementById('reg-email');
-        const email = emailInput.value;
-        const errorMessageDiv = document.getElementById('register-error-message');
-
-        // Очистить предыдущие ошибки
-        [loginInput, passwordInput, passwordConfirmInput, emailInput].forEach(input => {
-            input.classList.remove('input-error');
-        });
-        errorMessageDiv.textContent = '';
-
-        // Проверка на заполненность полей
-        if (!loginInput.value || !passwordInput.value || !passwordConfirmInput.value || !emailInput.value) {
-            errorMessageDiv.textContent = 'All fields are required';
-            [loginInput, passwordInput, passwordConfirmInput, emailInput].forEach(input => {
-                if (!input.value) {
-                    input.classList.add('input-error');
-                }
-            });
-            return;
-        }
-
-        // Проверка на совпадение паролей
-        if (passwordInput.value !== passwordConfirmInput.value) {
-            errorMessageDiv.textContent = 'Passwords do not match';
-            [passwordInput, passwordConfirmInput].forEach(input => {
-                input.classList.add('input-error');
-            });
-            return;
-        }
-
-        try {
-            const response = await fetch('https://localhost:8765/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ login, password, email })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem('token', data.token);
-                // Сохраняем факт того, что пользователь вошел в систему
-                localStorage.setItem('isLoggedIn', 'true');
-                if (data.userId) {
-                    showGameInterface(data.userId);
-                } else {
-                    console.error('UserId not provided by the server');
-                }
-            } else {
-                // Обработка ошибок регистрации
-            }
-        } catch (error) {
-            console.error('Error during fetch:', error);
-            alert('An error occurred while trying to register. Please try again later.');
-        }
-    });
-
-    function showAuthButtons() {
-        // Скрываем игровой интерфейс
-        document.getElementById('game-interface').style.display = 'none';
-        // Скрываем боковую панель игроков
-        document.getElementById('online-players-panel').style.display = 'none';
-        // Показываем кнопки входа и регистрации
-        buttonsContainer.style.visibility = 'visible';
-        // Скрываем формы авторизации и регистрации, если они были открыты
-        authForm.style.display = 'none';
-        registerForm.style.display = 'none';
-    }
-
-    function updateOnlinePlayers(players) {
-        console.log(players);
-        const panel = document.getElementById('online-players-panel');
-        panel.innerHTML = ''; // Очищаем текущий список
-    
-        if (Array.isArray(players)) {
-            players.forEach(player => {
-                const button = document.createElement('button');
-                button.textContent = player.login; // Используйте логин игрока
-                button.classList.add('player-button');
-                // Добавляем обработчик клика, если нужно
-                button.addEventListener('click', () => {
-                    // Логика при клике на кнопку игрока (например, начать игру или открыть чат)
-                });
-                panel.appendChild(button);
-            });
-        } else {
-            console.error('Expected players to be an array, but got:', players);
-        }
-    }
-
-    function logout() {
-        // Очищаем данные о сессии
-        localStorage.removeItem('token');
-        localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('userId');
-
-        showHeader(false);
-
-        // Показываем начальную страницу
+function restoreUIState(isLoggedIn) {
+    if (isLoggedIn) {
+        const userId = localStorage.getItem('userId');
+        // Пользователь авторизован, показываем интерфейс для авторизованных пользователей
+        showGameInterface(userId);
+    } else {
+        // Пользователь не авторизован, показываем интерфейс для неавторизованных пользователей
         showAuthButtons();
     }
 }
 
-// После успешной авторизации или регистрации
 function showGameInterface(userId) {
     // Скрываем формы регистрации и авторизации
     document.getElementById('auth-form').style.display = 'none';
     document.getElementById('register-form').style.display = 'none';
 
-    // Получаем логин пользователя для отображения
-    const userLogin = "Karapet"; // Замените на актуальное получение логина пользователя
-    showHeader(true);
-    const userInfo = document.getElementById('user-info');
-    userInfo.style.display = 'flex';
-    document.getElementById('user-login').textContent = userLogin; // Устанавливаем логин пользователя
+    // Здесь должен быть код для получения логина пользователя, например, из API или localStorage
+    const userLogin = "KarapetMayBenotGenius"; // Замените на актуальное получение логина пользователя
+    document.getElementById('user-login').textContent = userLogin;
 
-    // Показываем игровой интерфейс
+    // Обновляем шапку
+    updateHeader(true);
+
+    // Показываем игровой интерфейс и боковую панель игроков
     document.getElementById('game-interface').style.display = 'block';
-
-    // Показываем боковую панель игроков
     document.getElementById('online-players-panel').style.display = 'block';
 
     // Обновляем статус пользователя на онлайн
-    // Предполагается, что userId доступен после успешной авторизации/регистрации
     setUserOnline(userId);
 }
 
-// Функция для установки статуса пользователя после успешной авторизации/регистрации
+function showAuthButtons() {
+    // Скрываем игровой интерфейс и боковую панель игроков
+    document.getElementById('game-interface').style.display = 'none';
+    document.getElementById('online-players-panel').style.display = 'none';
+
+    // Обновляем шапку
+    updateHeader(false);
+
+    // Скрываем формы авторизации и регистрации, если они были открыты
+    document.getElementById('auth-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'none';
+}
+
+function setupEventHandlers() {
+    const signInButton = document.getElementById('header-sign-in-button');
+    const signUpButton = document.getElementById('header-sign-up-button');
+    const logoutButton = document.getElementById('logout-button');
+    const loginButton = document.getElementById('login-button');
+    const registerButton = document.getElementById('register-button');
+    const registerLink = document.getElementById('register-link');
+    const cancelButton = document.getElementById('cancel-button');
+    const regCancelButton = document.getElementById('reg-cancel-button');
+    const authForm = document.getElementById('auth-form');
+    const registerForm = document.getElementById('register-form');
+    const singButtonsContainer = document.getElementById('sign-buttons-container');
+
+    // Обработчик для кнопки "Вход"
+    signInButton.addEventListener('click', () => {
+        singButtonsContainer.style.display = 'none';
+        authForm.style.display = 'block';
+    });
+
+    // Обработчик для кнопки "Регистрация"
+    signUpButton.addEventListener('click', () => {
+        singButtonsContainer.style.display = 'none';
+        registerForm.style.display = 'block';
+    });
+
+    // Обработчик для кнопки "Выход"
+    logoutButton.addEventListener('click', () => {
+        logout();
+    });
+
+    // Обработчик для кнопки "Войти" на форме авторизации
+    loginButton.addEventListener('click', async () => {
+        const loginInput = document.getElementById('login');
+        const passwordInput = document.getElementById('password');
+        const login = loginInput.value;
+        const password = passwordInput.value;
+    
+        // Проверка на заполненность полей
+        if (!login || !password) {
+            alert('Please fill in both login and password fields');
+            return;
+        }
+    
+        try {
+            const response = await fetch('https://localhost:8765/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ login, password }),
+            });
+    
+            if (response.ok) {
+                const data = await response.json();
+                // Сохраняем токен и другие данные в localStorage
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userId', data.userId);
+    
+                // Обновляем интерфейс для отображения авторизованного пользователя
+                showGameInterface(data.userId);
+            } else {
+                // Если авторизация не удалась, отобразите сообщение об ошибке
+                alert('Invalid login or password');
+            }
+        } catch (error) {
+            console.error('Login failed:', error);
+            alert('An error occurred during login. Please try again later.');
+        }
+    });
+
+    // Обработчик для кнопки "Зарегистрироваться" на форме регистрации
+    registerButton.addEventListener('click', async () => {
+        const loginInput = document.getElementById('reg-login');
+        const passwordInput = document.getElementById('reg-password');
+        const passwordConfirmInput = document.getElementById('reg-password-confirm');
+        const emailInput = document.getElementById('reg-email');
+        const errorMessageDiv = document.getElementById('register-error-message');
+    
+        const login = loginInput.value.trim();
+        const password = passwordInput.value.trim();
+        const passwordConfirm = passwordConfirmInput.value.trim();
+        const email = emailInput.value.trim();
+    
+        // Очистка предыдущих сообщений об ошибках
+        errorMessageDiv.textContent = '';
+    
+        // Проверка на заполненность полей
+        if (!login || !password || !passwordConfirm || !email) {
+            errorMessageDiv.textContent = 'All fields are required.';
+            return;
+        }
+
+        // Проверка длины логина
+        if (login.length > 20) {
+            errorMessageDiv.textContent = 'Login must be 20 characters or fewer.';
+            return;
+        }
+    
+        // Проверка на совпадение паролей
+        if (password !== passwordConfirm) {
+            errorMessageDiv.textContent = 'Passwords do not match.';
+            return;
+        }
+    
+        try {
+            const response = await fetch('https://localhost:8765/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ login, password, email }),
+            });
+    
+            if (response.ok) {
+                const data = await response.json();
+                // Сохраняем данные пользователя и токен авторизации в localStorage
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userId', data.userId);
+    
+                // Обновляем интерфейс для отображения авторизованного пользователя
+                showGameInterface(data.userId);
+            } else {
+                // Если регистрация не удалась, отобразите сообщение об ошибке
+                const errorData = await response.json();
+                errorMessageDiv.textContent = errorData.message || 'Registration failed. Please try again.';
+            }
+        } catch (error) {
+            console.error('Registration failed:', error);
+            errorMessageDiv.textContent = 'An error occurred during registration. Please try again later.';
+        }
+    });
+    
+    // Обработчик для ссылки "Регистрация" на форме авторизации
+    registerLink.addEventListener('click', () => {
+        authForm.style.display = 'none';
+        registerForm.style.display = 'block';
+    });
+
+    // Обработчик для кнопки "Отмена" на форме авторизации
+    cancelButton.addEventListener('click', () => {
+        authForm.style.display = 'none';
+        singButtonsContainer.style.display = 'flex';
+    });
+
+    // Обработчик для кнопки "Отмена" на форме регистрации
+    regCancelButton.addEventListener('click', () => {
+        registerForm.style.display = 'none';
+        authForm.style.display = 'block';
+    });
+}
+
+function setupWebSocket() {
+    // Установка соединения WebSocket
+    const socket = io('https://localhost:8765');
+
+    // Обработка события 'onlinePlayers', которое обновляет список онлайн-игроков
+    socket.on('onlinePlayers', (onlinePlayers) => {
+        console.log('Online players:', onlinePlayers);
+        updateOnlinePlayers(onlinePlayers);
+    });
+
+    // Обработка других событий WebSocket, если требуется
+    // Например, обработка сообщений чата, уведомлений о начале игры и т.д.
+
+    // Обработка события закрытия страницы/вкладки для корректного отключения от WebSocket сервера
+    window.addEventListener('beforeunload', () => {
+        socket.disconnect();
+    });
+}
+
+function updateOnlinePlayers(players) {
+    // Получаем элемент панели онлайн-игроков
+    const panel = document.getElementById('online-players-panel');
+    // Очищаем текущий список
+    panel.innerHTML = '';
+
+    // Проверяем, что полученный список игроков является массивом
+    if (Array.isArray(players)) {
+        // Проходим по массиву игроков и создаем для каждого элемент списка
+        players.forEach(player => {
+            // Создаем элемент списка
+            const playerItem = document.createElement('div');
+            playerItem.classList.add('player-item');
+            // Устанавливаем текст элемента, используя логин игрока
+            playerItem.textContent = player.login;
+            // Добавляем элемент списка в панель онлайн-игроков
+            panel.appendChild(playerItem);
+        });
+    } else {
+        console.error('Expected players to be an array, but got:', players);
+    }
+}
+
 function setUserOnline(userId) {
+    // Отправляем событие 'userOnline' на сервер через WebSocket
+    // с идентификатором пользователя в качестве данных
     socket.emit('login', userId);
 }
 
-function showHeader(authorized) {
-    console.log(authorized);
-    const signButtonsContainer = document.getElementById('sign-buttons-container');
-    const logoutButtonContainer = document.getElementById('logout-button-container');
+function logout() {
+    // Если используется WebSocket, отправляем на сервер уведомление о выходе пользователя
+    // Это предполагает, что у вас уже есть глобальная переменная socket для WebSocket соединения
+    // и что сервер обрабатывает событие 'logout'
+    socket.emit('logout', localStorage.getItem('userId'));
 
-    if (authorized) {
-        signButtonsContainer.style.display = 'none'; // Скрываем блок с кнопками авторизации и регистрации
-        logoutButtonContainer.style.display = 'flex'; // Показываем блок с аватаром+логином и кнопкой Logout
-    } else {
-        signButtonsContainer.style.display = 'flex'; // Показываем блок с кнопками авторизации и регистрации
-        logoutButtonContainer.style.display = 'none'; // Скрываем блок с аватаром+логином и кнопкой Logout
-    }
+    // Устанавливаем статус авторизации в false
+    localStorage.setItem('isLoggedIn', false);
+    // Удаляем данные авторизации из localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
+
+    // Обновляем интерфейс для неавторизованных пользователей
+    showAuthButtons();
+
+    // Дополнительно можно перенаправить пользователя на главную страницу или страницу входа
+    // window.location.href = '/login.html'; // Например, если у вас есть отдельная страница входа
 }
+
+window.addEventListener('beforeunload', () => {
+    // Отправляем событие 'userOffline' на сервер через WebSocket
+    // с идентификатором пользователя в качестве данных
+    socket.emit('userOffline', userId);
+    socket.disconnect();
+});

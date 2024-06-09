@@ -8,20 +8,6 @@
 <body>
     <header id="header">
         <div class="header-block"></div> <!-- Левый пустой блок для балансировки -->
-        <div class="logo-container"></div> <!-- Центральный блок для логотипа -->
-        <div id="buttons-container" class="buttons-container"> <!-- Правый блок для кнопок -->
-            <div id="sign-buttons-container" class="sign-buttons-container">
-                <button id="header-sign-in-button">Sign in</button>
-                <button id="header-sign-up-button">Sign up</button>
-            </div>
-            <div id="logout-button-container" class="logout-button-container">
-                <div id="user-info" class="user-info"> <!-- Изначально скрыт -->
-                    <div class="user-avatar"></div> <!-- Аватар пользователя -->
-                    <span id="user-login">Username</span> <!-- Логин пользователя -->
-                </div>
-                <button id="logout-button">Logout</button>
-            </div>
-        </div>
     </header>
     <main>
         <div id="auth-form" style="display: none;">
@@ -70,14 +56,11 @@
         <div id="game-interface" style="display: none;">
             <h2>Welcome to Tetris Online!</h2>
             <!-- Другие элементы игрового интерфейса... -->
-
-            <!-- Панель игроков онлайн -->
-            <div id="online-players-panel">
+        </div>
+        <!-- Панель игроков онлайн -->
+        <div id="online-players-panel" style="display: none;">
             <!-- Здесь будут кнопки с логинами игроков -->
-            </div>
         </div>
     </main>
-    <!-- <script src="https://localhost:8765/socket.io/socket.io.js"></script>
-    <script src="main.js"></script> -->
 </body>
 </html>

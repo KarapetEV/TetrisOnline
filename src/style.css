@@ -19,6 +19,7 @@ header {
     padding: 5px 10px;
     background: rgba(0, 0, 0, 0.7);
     height: 80px;
+    border: 1px solid #4682B4;
 }
 
 .header-block {
@@ -67,6 +68,8 @@ header::before {
     align-items: flex-end; /* Выравнивает кнопки по правому краю */
     gap: 3px; /* Добавляет промежуток между кнопками */
     order: 2;
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 .logout-button-container {
@@ -81,7 +84,8 @@ header::before {
 .user-info {
     display: flex;
     align-items: center;
-    margin-bottom: 3px; /* Отступ от кнопки выхода */
+    margin-top: 2px;
+    margin-bottom: 0; /* Отступ от кнопки выхода */
     color: aqua;
 }
 
@@ -106,8 +110,8 @@ header button {
     border-radius: 5px;
     cursor: pointer;
     width: 80px;
-    margin-top: 5px; /* Отступ сверху для кнопки "Sign up" */
-    margin-bottom: 5px; /* Уменьшаем отступ снизу для кнопки */
+    margin-top: 5px;
+    margin-bottom: 5px;
 }
 
 header button:hover {
@@ -115,6 +119,7 @@ header button:hover {
 }
 
 h2 {
+    color: white;
     margin-bottom: 40px; /* Добавляем отступ снизу для заголовка */
     text-align: center;
 }
@@ -128,6 +133,7 @@ div {
 }
 
 label {
+    color: white;
     flex: 1;
     margin-right: 0px; /* Добавляем отступ справа для label */
 }
@@ -147,23 +153,30 @@ button {
     margin: 10px 1%;
     border: none;
     border-radius: 5px;
-    background-color: #007bff;
-    color: white;
+    border: 1px solid #87CEEB;
+    color: #87CEEB;
+    font-size: 15px;
+    font-weight: bold;
+    text-decoration: none;
+    background: rgb(225, 243, 255, 0);;
+    transition: .4s;
     cursor: pointer;
 }
 
 button:hover {
-    background-color: #0056b3;
+    background: #4682B4;
+    color: #FFF;
 }
 
 #auth-form, #register-form {
     width: 350px;
     margin: 150px auto;
     padding: 20px;
+    padding-bottom: 10px;
     border: 1px solid #ccc;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    background-color: #E0FFFF;
+    background: rgba(0, 0, 0, 0.8);
     display: flex; /* Используем flexbox для внутренних элементов */
     flex-direction: column; /* Элементы располагаются вертикально */
     align-items: center; /* Центрирование элементов по горизонтали */
@@ -174,7 +187,8 @@ button:hover {
 }
 
 #register-link, #forgot-password-link {
-    color: #007bff;
+    color: #87CEEB;
+    font-size: 13px;
     flex-basis: 48%; /* Задаем базовую ширину для ссылок, чтобы они занимали примерно половину доступного пространства */
     text-align: center; /* Центрируем текст внутри ссылок */
     cursor: pointer;
@@ -184,6 +198,10 @@ button:hover {
 #auth-form div:last-child, #register-form div:last-child {
     display: flex;
     justify-content: space-around; /* Располагаем кнопки и ссылки на равном расстоянии друг от друга */
+}
+
+#auth-form-buttons {
+    margin-bottom: 0;
 }
 
 .error-message {
@@ -204,11 +222,15 @@ button:hover {
   #online-players-panel {
     position: fixed; /* Фиксированное положение справа */
     right: 0;
+    top: 90px;
+    bottom: 0;
     width: 180px; /* Ширина панели */
-    height: 100%; /* Высота панели */
-    background-color: rgba(0, 0, 0, 0.5); /* Цвет фона */
+    background-color: rgba(0, 0, 0, 0.7); /* Цвет фона */
     overflow-y: auto; /* Прокрутка, если содержимое не помещается */
     padding: 10px;
+    border: 1px solid #4682B4;
+    border-radius: 10px;
+    margin-bottom: 0;
 }
 
 .player-button {
@@ -221,4 +243,21 @@ button:hover {
     border-radius: 10px; /* Закругленные углы */
     cursor: pointer;
     text-align: center;
+}
+
+#header-sign-in-button, #header-sign-up-button, #logout-button {
+    position: relative;
+    display: inline-block;
+    font-weight: bold;
+    padding: 0.5em 1em;
+    text-decoration: none;
+    border: 1px solid #87CEEB;
+    color: #87CEEB;
+    background: rgb(225, 243, 255, 0);;
+    transition: .4s;
+}
+  
+#header-sign-in-button:hover, #header-sign-up-button:hover, #logout-button:hover {
+    background: #4682B4;
+    color: #FFF;
 }

@@ -8,7 +8,7 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const https = require('https');
 
-const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers } = require('./db');
+const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers, getUserStats } = require('./db');
 
 const app = express();
 const port = 8765;
@@ -33,8 +33,9 @@ app.post('/api/auth/register', async (req, res) => {
         }
 
         const newUser = await createUser(login, password, email);
+        const stats = await getUserStats(newUser.id);
         const token = jwt.sign({ userId: newUser.id }, jwtSecret, { expiresIn: '1h' });
-        res.status(201).json({ token, userId: newUser.id });
+        res.status(201).json({ token, userId: newUser.id, stats });
         // updateUserOnlineStatus(login, true);
         console.log(`User registered successfully: ${login}`);
     } catch (err) {
@@ -54,10 +55,12 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid login or password' });
         }
 
+        // Если пароль валиден, получаем статистику пользователя
+        const stats = await getUserStats(user.id);
+
         // Если пароль валиден, создаем токен и отправляем его пользователю
-        const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: '1h' });
-        res.json({ token, userId: user.id });
-        // updateUserOnlineStatus(login, true);
+        const token = jwt.sign({ userId: user.id, login: user.login, stats }, jwtSecret, { expiresIn: '1h' });
+        res.json({ token, userId: user.id, stats });
         console.log(`User logged in successfully: ${login}`);
     } catch (err) {
         console.error(err);
@@ -65,8 +68,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-const privateKey = fs.readFileSync('./certs/private.key', 'utf8');
-const certificate = fs.readFileSync('./certs/certificate.crt', 'utf8');
+const privateKey = fs.readFileSync('./certs/localhost.key', 'utf8');
+const certificate = fs.readFileSync('./certs/localhost.crt', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 const httpsServer = https.createServer(credentials, app);
@@ -80,15 +83,17 @@ const io = require('socket.io')(httpsServer, {
   const userSockets = {};
   
   io.on('connection', (socket) => {
+    const userTimeouts = {};
     console.log('User connected:', socket.id);
     // Функция для отправки списка онлайн игроков
-    function sendOnlinePlayers() {
-        let onlinePlayers = getAllOnlinePlayers(); // Получаем список онлайн игроков
+    async function sendOnlinePlayers() {
+        let onlinePlayers = await getAllOnlinePlayers(); // Получаем список онлайн игроков
         // Убедитесь, что onlinePlayers действительно является массивом
         if (!Array.isArray(onlinePlayers)) {
             console.error('getAllOnlinePlayers did not return an array');
             onlinePlayers = []; // Используем пустой массив, если результат не массив
         }
+        console.log(`online players from server: ${onlinePlayers.length}`);
         io.emit('onlinePlayers', onlinePlayers); // Отправляем список всем подключенным клиентам
     }
     
@@ -100,6 +105,7 @@ const io = require('socket.io')(httpsServer, {
       userSockets[socket.id] = userId;
       // Обновляем статус пользователя на онлайн
       await updateUserOnlineStatus(userId, true);
+      sendOnlinePlayers();
     });
 
     socket.on('logout', async (userId) => {
@@ -111,6 +117,7 @@ const io = require('socket.io')(httpsServer, {
         } else {
             console.log('No userId provided for logout event');
         }
+        sendOnlinePlayers();
     });
   
     socket.on('disconnect', async () => {
@@ -118,11 +125,26 @@ const io = require('socket.io')(httpsServer, {
         // Получаем userId для socket.id
         const userId = userSockets[socket.id];
         if (userId) {
-            // Обновляем статус пользователя на офлайн
-            await updateUserOnlineStatus(userId, false);
-            // Удаляем запись из объекта соответствия
-            delete userSockets[socket.id];
+            // Запускаем таймер, который пометит пользователя как офлайн, если он не переподключится в течение заданного времени
+            userTimeouts[userId] = setTimeout(async () => {
+                await updateUserOnlineStatus(userId, false);
+                delete userSockets[socket.id];
+                sendOnlinePlayers();
+            }, 10000); // Установите таймаут, например, в 10 секунд
         }
+        sendOnlinePlayers();
+    });
+
+    // Добавьте логику для отмены таймаута при переподключении пользователя
+    socket.on('reconnect', async () => {
+        const userId = userSockets[socket.id];
+        if (userId && userTimeouts[userId]) {
+            clearTimeout(userTimeouts[userId]);
+            delete userTimeouts[userId];
+        }
+        // Возможно, вам понадобится повторно вызвать updateUserOnlineStatus, если статус был изменен
+        await updateUserOnlineStatus(userId, true);
+        sendOnlinePlayers();
     });
  
     // Другие обработчики событий...

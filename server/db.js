@@ -10,24 +10,57 @@ const pool = new Pool({
 });
 
 async function findUser(login, email) {
-    const client = await pool.connect();
+    let client;
     try {
+        client = await pool.connect();
         const result = await client.query('SELECT * FROM users WHERE login = $1 OR email = $2', [login, email]);
         return result.rows;
+    } catch (err) {
+        console.error('Error in findUser:', err);
+        throw err;
     } finally {
-        client.release();
+        if (client) {
+            client.release();
+        }
     }
 }
 
 async function createUser(login, password, email) {
     const client = await pool.connect();
     try {
+        await client.query('BEGIN'); // Начало транзакции
         const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await client.query(
-            'INSERT INTO users (login, password, email, role_id, reg_date) VALUES ($1, $2, $3, (SELECT id FROM roles WHERE role_name = $4), NOW()) RETURNING id',
-            [login, hashedPassword, email, 'player']
+
+        // Сначала создаем запись в game_info
+        const gameInfoResult = await client.query(
+            'INSERT INTO game_info (win, lose, rating) VALUES (0, 0, 1000) RETURNING id'
         );
-        return result.rows[0];
+        const gameInfoId = gameInfoResult.rows[0].id;
+
+        // Получаем id для роли "player"
+        const roleResult = await client.query(
+            'SELECT id FROM roles WHERE role_name = $1',
+            ['player']
+        );
+        const roleId = roleResult.rows[0].id;
+
+        // Теперь создаем пользователя с ссылкой на game_info и ролью "player"
+        const userResult = await client.query(
+            'INSERT INTO users (login, password, email, role_id, reg_date, game_info_id) VALUES ($1, $2, $3, $4, NOW(), $5) RETURNING id',
+            [login, hashedPassword, email, roleId, gameInfoId]
+        );
+
+        // Обновляем game_info с user_id
+        await client.query(
+            'UPDATE game_info SET user_id = $1 WHERE id = $2',
+            [userResult.rows[0].id, gameInfoId]
+        );
+        await client.query('COMMIT'); // Фиксируем транзакцию
+        return userResult.rows[0];
+    } catch (err) {
+        await client.query('ROLLBACK'); // Откатываем транзакцию в случае ошибки
+        console.error('Error creating user:', err);
+        throw err;
     } finally {
         client.release();
     }
@@ -43,9 +76,11 @@ async function updateUserOnlineStatus(userId, onlineStatus) {
 }
 
 async function getAllOnlinePlayers() {
+    const client = await pool.connect();
     try {
-        const result = await pool.query('SELECT id, login FROM users WHERE online_status = true');
+        const result = await client.query('SELECT u.id, u.login, g.rating FROM users u JOIN game_info g ON u.id = g.user_id WHERE u.online_status = true;');
         if (result.rows.length > 0) {
+            console.log(`online players from db: ${result.rows.length}`);
             return result.rows;
         } else {
             return [];
@@ -77,10 +112,27 @@ async function validateUser(login, password) {
     }
 }
 
+async function getUserStats(userId) {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT win, lose, rating FROM game_info WHERE user_id = $1', [userId]);
+        if (result.rows.length > 0) {
+            const stats = result.rows[0];
+            stats.total = stats.win + stats.lose; // Вычисляем общее количество игр
+            return stats;
+        } else {
+            return { win: 0, lose: 0, rating: 0, total: 0 }; // Возвращаем нулевую статистику, если данных нет
+        }
+    } finally {
+        client.release();
+    }
+}
+
 module.exports = {
     findUser,
     createUser,
     updateUserOnlineStatus,
     validateUser,
-    getAllOnlinePlayers
+    getAllOnlinePlayers,
+    getUserStats
 };

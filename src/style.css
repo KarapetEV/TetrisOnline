@@ -1,4 +1,4 @@
-body {
+html, body {
     display: flex;
     flex-direction: column;
     font-family: Arial, sans-serif;
@@ -8,7 +8,13 @@ body {
     background-position: center;
     min-height: 100vh;
     margin: 0;
+    padding: 0;
+    overflow: hidden; /* Это предотвратит появление полос прокрутки на уровне всей страницы */
 }
+
+/* * {
+    box-sizing: border-box;
+} */
 
 header {
     position: relative; /* Делаем header относительно позиционированным контейнером */
@@ -17,7 +23,7 @@ header {
     justify-content: space-between; /* Для размещения кнопок и пустого блока */
     align-items: center; /* Центрирование по вертикали */
     padding: 5px 10px;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.8);
     height: 80px;
     border: 1px solid #4682B4;
 }
@@ -215,35 +221,87 @@ button:hover {
     margin-bottom: 10px; /* Добавляем нижний отступ для отделения от полей ввода */
   }
   
-  .input-error {
+.input-error {
     border: 1px solid red;
   }
 
-  #online-players-panel {
-    position: fixed; /* Фиксированное положение справа */
-    right: 0;
-    top: 90px;
-    bottom: 0;
-    width: 180px; /* Ширина панели */
-    background-color: rgba(0, 0, 0, 0.7); /* Цвет фона */
-    overflow-y: auto; /* Прокрутка, если содержимое не помещается */
-    padding: 10px;
-    border: 1px solid #4682B4;
-    border-radius: 10px;
-    margin-bottom: 0;
+#game-interface {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden; /* Это предотвратит появление полос прокрутки */
 }
 
-.player-button {
-    display: block; /* Блочный элемент */
-    width: calc(100% - 20px); /* Ширина с учетом padding */
-    margin-bottom: 10px; /* Отступ снизу */
-    padding: 10px;
-    background-color: #ddd; /* Цвет фона кнопки */
-    border: none;
-    border-radius: 10px; /* Закругленные углы */
-    cursor: pointer;
-    text-align: center;
+#play-button {
+    position: fixed;
+    left: 0;
+    top: 0;
+    margin: 0;
 }
+
+#game-container {
+    background-color: rgba(0, 0, 0, 0.8); /* Цвет фона */
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: calc(100vw - 200px); /* Уменьшаем ширину на ширину панели игроков */
+    height: calc(100vh - 94px);
+    border: 1px solid #4682B4;
+    border-radius: 10px;
+    margin: 0;
+    overflow: hidden;
+}
+
+#online-players-panel {
+    position: fixed; /* Фиксированное положение справа */
+    right: 0;
+    top: 91px;
+    bottom: 0;
+    width: 200px; /* Ширина панели */
+    background-color: rgba(0, 0, 0, 0.8); /* Цвет фона */
+    color: #87CEEB;
+    text-align: center;
+    overflow-y: auto; /* Прокрутка, если содержимое не помещается */
+    padding: 5px;
+    border: 1px solid #4682B4;
+    border-radius: 10px;
+    margin: 0;
+}
+
+#online-players-panel, .player-container, .player-login, .player-rating, .status-label {
+    box-sizing: border-box;
+}
+
+.player-container {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0px;
+    margin-bottom: 5px;
+    border: 1px solid #87CEEB;
+    background: rgb(225, 243, 255, 0);
+    cursor: pointer;
+    transition: .4s;
+}
+
+.player-container:hover {
+    background: #4682B4;
+    color: #FFF;
+}
+
+.player-login, .player-rating, .status-label {
+    font-size: 12px;
+    display: inline-block;
+    text-align: left;
+}
+
+/* Применяем процентные ширины для элементов внутри контейнера */
+.player-login { width: 70%; }
+.player-rating { width: 20%; }
+.status-label { width: 10%; }
 
 #header-sign-in-button, #header-sign-up-button, #logout-button {
     position: relative;
@@ -260,4 +318,27 @@ button:hover {
 #header-sign-in-button:hover, #header-sign-up-button:hover, #logout-button:hover {
     background: #4682B4;
     color: #FFF;
+}
+
+#user-stats-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); /* Две колонки */
+    grid-template-rows: auto auto; /* Две строки, высота по содержимому */
+    gap: 10px; /* Отступы между ячейками */
+    justify-content: center; /* Центрируем сетку по горизонтали */
+    align-items: center; /* Выравниваем элементы по вертикали */
+    padding: 10px; /* Паддинг вокруг сетки */
+    width: auto; /* Ширина по содержимому */
+    margin: 0 auto; /* Центрирование контейнера внутри родителя */
+    margin-right: 150px;
+}
+
+.stats-cell {
+    color: #87CEEB;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 3px 10px; /* Уменьшенный паддинг внутри ячеек */
+    text-align: center; /* Текст по центру */
+    border-radius: 5px; /* Скругление углов */
+    margin-bottom: 0;
 }

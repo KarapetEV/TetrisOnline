@@ -67,6 +67,8 @@ async function createUser(login, password, email) {
 }
 
 async function updateUserOnlineStatus(userId, onlineStatus) {
+    const date = new Date();
+    console.log(`Обновляем статус для userId: ${userId}. Status: ${onlineStatus}. Time: ${date.toLocaleTimeString()}`);
     const client = await pool.connect();
     try {
         await client.query('UPDATE users SET online_status = $2 WHERE id = $1', [userId, onlineStatus]);

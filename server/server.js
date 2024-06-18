@@ -87,7 +87,9 @@ const io = require('socket.io')(httpsServer, {
     console.log('User connected:', socket.id);
     // Функция для отправки списка онлайн игроков
     async function sendOnlinePlayers() {
+        console.log(`Отрабатывает событие sendOnlinePlayers`);
         let onlinePlayers = await getAllOnlinePlayers(); // Получаем список онлайн игроков
+        console.log(`В событии sendOnlinePlayers онлайн-игроков: ${onlinePlayers.length}`);
         // Убедитесь, что onlinePlayers действительно является массивом
         if (!Array.isArray(onlinePlayers)) {
             console.error('getAllOnlinePlayers did not return an array');
@@ -97,15 +99,26 @@ const io = require('socket.io')(httpsServer, {
         io.emit('onlinePlayers', onlinePlayers); // Отправляем список всем подключенным клиентам
     }
     
-    // Вызываем функцию при подключении нового пользователя и при других событиях, которые могут изменить статус онлайн
-    sendOnlinePlayers();
+    // console.log(`Вызов sendOnlinePlayers в событии connection`);
+    // // Вызываем функцию при подключении нового пользователя и при других событиях, которые могут изменить статус онлайн
+    // sendOnlinePlayers();
   
     socket.on('login', async (userId) => {
-      // Сохраняем соответствие между socket.id и userId
-      userSockets[socket.id] = userId;
-      // Обновляем статус пользователя на онлайн
-      await updateUserOnlineStatus(userId, true);
-      sendOnlinePlayers();
+        console.log(`Отрабатывает событие login с userId: ${userId}`);
+
+        if (userTimeouts[userId]) {
+            clearTimeout(userTimeouts[userId]);
+            delete userTimeouts[userId];
+            console.log(`Таймер для пользователя ${userId} отменен, так как он снова онлайн`);
+        }
+
+        // Сохраняем соответствие между socket.id и userId
+        userSockets[socket.id] = userId;
+        // Обновляем статус пользователя на онлайн
+        await updateUserOnlineStatus(userId, true);
+
+        console.log(`Вызов sendOnlinePlayers в событии login`);
+        sendOnlinePlayers();
     });
 
     socket.on('logout', async (userId) => {
@@ -117,6 +130,7 @@ const io = require('socket.io')(httpsServer, {
         } else {
             console.log('No userId provided for logout event');
         }
+        console.log(`Вызов sendOnlinePlayers в событии logout`);
         sendOnlinePlayers();
     });
   
@@ -127,24 +141,49 @@ const io = require('socket.io')(httpsServer, {
         if (userId) {
             // Запускаем таймер, который пометит пользователя как офлайн, если он не переподключится в течение заданного времени
             userTimeouts[userId] = setTimeout(async () => {
-                await updateUserOnlineStatus(userId, false);
-                delete userSockets[socket.id];
-                sendOnlinePlayers();
+                // Проверяем, не переподключился ли пользователь
+                if (!userSockets[socket.id]) {
+                    await updateUserOnlineStatus(userId, false);
+                    delete userSockets[socket.id];
+                    console.log(`Статус пользователя ${userId} изменен на офлайн`);
+                    // sendOnlinePlayers();
+                }
             }, 10000); // Установите таймаут, например, в 10 секунд
         }
-        sendOnlinePlayers();
+        // sendOnlinePlayers();
     });
 
     // Добавьте логику для отмены таймаута при переподключении пользователя
     socket.on('reconnect', async () => {
         const userId = userSockets[socket.id];
+        console.log(`userId when reconnect: ${userId}`);
+        console.log(`userTimeouts when reconnect: ${userTimeouts[userId]}`);
         if (userId && userTimeouts[userId]) {
             clearTimeout(userTimeouts[userId]);
             delete userTimeouts[userId];
         }
         // Возможно, вам понадобится повторно вызвать updateUserOnlineStatus, если статус был изменен
         await updateUserOnlineStatus(userId, true);
+        console.log(`Вызов sendOnlinePlayers в событии connection`);
         sendOnlinePlayers();
+    });
+
+    socket.on('userOffline', () => {
+        const userId = userSockets[socket.id];
+        if (userId) {
+            console.log(`Пользователь с ID ${userId} уходит офлайн`);
+            // Здесь можно реализовать логику для обновления статуса пользователя на офлайн
+            // Например, обновить статус в базе данных
+            updateUserOnlineStatus(userId, false).then(() => {
+                console.log(`Статус пользователя ${userId} обновлен на офлайн`);
+                // Опционально, можно отправить обновленный список онлайн-игроков всем подключенным клиентам
+                sendOnlinePlayers();
+            }).catch((error) => {
+                console.error(`Ошибка при обновлении статуса пользователя ${userId}:`, error);
+            });
+        } else {
+            console.log('Не удалось идентифицировать пользователя для события userOffline');
+        }
     });
  
     // Другие обработчики событий...

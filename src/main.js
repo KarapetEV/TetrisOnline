@@ -13,7 +13,15 @@ window.onload = function() {
     const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'; // Преобразуем строку в boolean
     initializeHeader(isLoggedIn);
     setupEventHandlers();
-    restoreUIState(isLoggedIn);
+    if (isLoggedIn) {
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+            socket.emit('login', userId);
+        }
+        restoreUIState(true);
+    } else {
+        restoreUIState(false);
+    }
     setupWebSocket(); // Установка WebSocket соединения и обработчиков событий
 };
 
@@ -158,6 +166,7 @@ function showAuthButtons() {
     // Скрываем игровой интерфейс и боковую панель игроков
     document.getElementById('game-interface').style.display = 'none';
     document.getElementById('online-players-panel').style.display = 'none';
+
 
     // Обновляем шапку
     updateHeader(false);
@@ -367,6 +376,7 @@ function setupWebSocket() {
             if (userId) {
                 console.log('Отправка login с userId после перезагрузки:', userId);
                 socket.emit('login', userId);
+                console.log('Повторная отправка login после переподключения');
             } else {
                 console.error('UserId not found');
             }
@@ -384,10 +394,16 @@ function setupWebSocket() {
 
     // Обработка события закрытия страницы/вкладки для корректного отключения от WebSocket сервера
     window.addEventListener('beforeunload', () => {
-        const userId = localStorage.getItem('userId');
-        console.log('Отправка logout с userId:', userId);
-        socket.emit('logout', userId); // Уведомляем сервер о выходе
-        socket.disconnect();
+        const userId = localStorage.getItem('userId'); // Получаем userId из localStorage
+        if (userId) {
+            console.log('Отправка logout с userId:', userId);
+            socket.emit('logout', userId); // Уведомляем сервер о выходе пользователя
+        } else {
+            // Если userId по какой-то причине отсутствует, можно отправить другое событие или обработать этот случай иначе
+            console.log('Отправка userOffline');
+            socket.emit('userOffline'); // Уведомляем сервер, что пользователь уходит офлайн
+        }
+        socket.disconnect(); // Отключаемся от WebSocket сервера
     });
 
     socket.on('connect_error', function(err) {
@@ -404,11 +420,12 @@ function updateOnlinePlayers(players) {
     const panel = document.getElementById('online-players-panel');
     // Очищаем текущий список
     panel.innerHTML = '';
-    
+    console.log(`очистка панели`);
     // Создаем и добавляем заголовок
     const header = document.createElement('h3');
     header.textContent = 'Players online';
     panel.appendChild(header);
+    console.log(`добавили надпись на панель`);
 
     // Создаем и добавляем разделительную линию
     const divider = document.createElement('hr');
@@ -417,6 +434,7 @@ function updateOnlinePlayers(players) {
 
     // Проверяем, что полученный список игроков является массивом
     if (Array.isArray(players)) {
+        console.log(`Онлайн игроков на панели должно быть: ${players.length}`);
         // Проходим по массиву игроков и создаем для каждого элемент списка
         players.forEach(player => {
             const playerContainer = document.createElement('div');
@@ -454,9 +472,12 @@ function sendInvitation(playerId) {
 }
 
 function setUserOnline(userId) {
-    // Отправляем событие 'userOnline' на сервер через WebSocket
-    // с идентификатором пользователя в качестве данных
-    socket.emit('login', userId);
+    console.log(`Вызов метода setUserOnline для userId: ${userId}`);
+    if (!localStorage.getItem('loginSent')) {
+        socket.emit('login', userId);
+        localStorage.setItem('loginSent', 'true');
+        console.log('Отправка login с userId:', userId);
+    }
 }
 
 // Обработчик события переподключения
@@ -467,6 +488,7 @@ socket.on('reconnect', () => {
     // Здесь предполагается, что у вас есть функция getCurrentUserId(),
     // которая возвращает идентификатор текущего пользователя
     const userId = localStorage.getItem('userId');
+    console.log(`Reconnect в WS - userId: ${userId}`);
     if (userId) {
       socket.emit('login', userId);
     }
@@ -484,9 +506,13 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('userLogin');
+    localStorage.removeItem('loginSent'); // Добавлено удаление флага loginSent
 
     // Обновляем интерфейс для неавторизованных пользователей
     showAuthButtons();
+
+    // Отключаемся от WebSocket сервера
+    socket.disconnect();
 }
 
 function createUserStatsContainer() {
@@ -525,9 +551,9 @@ function updateAndShowUserStats(total, win, rank, lose) {
     document.querySelector('#user-stats-container div:nth-child(4)').textContent = `LOSE: ${lose}`;
 }
 
-window.addEventListener('beforeunload', () => {
-    // Отправляем событие 'userOffline' на сервер через WebSocket
-    // с идентификатором пользователя в качестве данных
-    socket.emit('userOffline', userId);
-    socket.disconnect();
-});
+// window.addEventListener('beforeunload', () => {
+//     // Отправляем событие 'userOffline' на сервер через WebSocket
+//     // с идентификатором пользователя в качестве данных
+//     socket.emit('userOffline', userId);
+//     socket.disconnect();
+// });

@@ -7,10 +7,13 @@ export class Game {
         this.board = []; // Игровое поле
         this.initBoard();
         this.lastUpdateTime = Date.now();
-        this.updateInterval = 500; // Интервал обновления в миллисекундах (0,5 секунды)
+        this.updateInterval = 750; // Интервал обновления в миллисекундах (0,5 секунды)
         this.animationFrameId = null;
         document.addEventListener('keydown', this.handleKeyPress.bind(this));
         this.isGameOver = false;
+        this.needsRedraw = true; // Флаг, указывающий на необходимость перерисовки
+        this.cellSize = 25;
+        this.nextPiece = null; // Следующая фигура
     }
 
     initBoard() {
@@ -178,14 +181,71 @@ export class Game {
             T: 'purple'
         };
 
-        // Генерация случайной фигуры
-        const shapeKeys = Object.keys(SHAPES);
-        const randomShapeKey = shapeKeys[Math.floor(Math.random() * shapeKeys.length)];
-        const shape = SHAPES[randomShapeKey];
-        const color = COLORS[randomShapeKey];
-        this.currentPiece = new Piece(shape, color);
-        this.currentPiece.x = Math.floor(this.columns / 2) - Math.floor(this.currentPiece.shape[0].length / 2);
-        this.currentPiece.y = -1; // Убедитесь, что фигура появляется в самом верху стакана
+        // Если следующая фигура уже существует, используем её как текущую
+        if (this.nextPiece) {
+            this.currentPiece = this.nextPiece;
+            this.currentPiece.x = Math.floor(this.columns / 2) - Math.floor(this.currentPiece.shape[0].length / 2);
+            this.currentPiece.y = -1; // Убедитесь, что фигура появляется в самом верху стакана
+        } else {
+            // Генерация случайной фигуры для текущего хода
+            let randomShapeKey = Object.keys(SHAPES)[Math.floor(Math.random() * Object.keys(SHAPES).length)];
+            let shape = SHAPES[randomShapeKey];
+            let rotations = Math.floor(Math.random() * 4);
+            shape = this.rotatePieceMultipleTimes(shape, rotations);
+            const color = '#2E6C6A'; // Цвет всех фигур
+            this.currentPiece = new Piece(shape, color);
+            this.currentPiece.x = Math.floor(this.columns / 2) - Math.floor(shape[0].length / 2);
+            this.currentPiece.y = -1;
+        }
+
+        // Генерация следующей фигуры
+        let nextRandomShapeKey = Object.keys(SHAPES)[Math.floor(Math.random() * Object.keys(SHAPES).length)];
+        let nextShape = SHAPES[nextRandomShapeKey];
+        let nextRotations = Math.floor(Math.random() * 4);
+        nextShape = this.rotatePieceMultipleTimes(nextShape, nextRotations);
+        this.nextPiece = new Piece(nextShape, '#2E6C6A'); // Установка цвета для следующей фигуры
+    }
+
+    rotatePieceMultipleTimes(shape, times) {
+        let rotatedShape = shape;
+        for (let i = 0; i < times; i++) {
+            rotatedShape = this.rotatePiece(rotatedShape);
+        }
+        return rotatedShape;
+    }
+
+    drawNextPiece() {
+        const panelX = this.columns * this.cellSize; // X-координата начала панели
+        const panelWidth = 4 * this.cellSize; // Ширина панели, достаточная для отображения фигуры
+        const nextPieceBlockSize = 4 * this.cellSize; // Высота блока для следующей фигуры
+    
+        // Очищаем область для следующей фигуры
+        this.context.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Полупрозрачный фон
+        this.context.fillRect(panelX, 0, panelWidth, nextPieceBlockSize);
+    
+        if (this.nextPiece) {
+            // Вычисляем смещение для центрирования следующей фигуры в блоке
+            const offsetX = panelX + (panelWidth - this.nextPiece.shape[0].length * this.cellSize) / 2;
+            const offsetY = (nextPieceBlockSize - this.nextPiece.shape.length * this.cellSize) / 2;
+    
+            // Отрисовка следующей фигуры
+            this.context.fillStyle = this.nextPiece.color;
+            for (let r = 0; r < this.nextPiece.shape.length; r++) {
+                for (let c = 0; c < this.nextPiece.shape[r].length; c++) {
+                    if (this.nextPiece.shape[r][c]) {
+                        this.drawRoundedRect(
+                            offsetX + c * this.cellSize,
+                            offsetY + r * this.cellSize,
+                            this.cellSize,
+                            this.cellSize,
+                            3,
+                            this.nextPiece.color,
+                            '#87CEEB'
+                        );
+                    }
+                }
+            }
+        }
     }
 
     draw() {
@@ -195,13 +255,12 @@ export class Game {
         // Отрисовка игрового поля
         for (let r = 0; r < this.rows; r++) {
             for (let c = 0; c < this.columns; c++) {
-                if (this.board[r][c] === '') {
-                    this.context.fillStyle = 'white'; // Цвет пустой ячейки
-                } else {
-                    this.context.fillStyle = this.board[r][c]; // Цвет заполненной ячейки
+                let fillColor = 'rgba(0, 0, 0, 0.7)'; // Цвет пустой ячейки
+                if (this.board[r][c] !== '') {
+                    fillColor = this.board[r][c]; // Цвет заполненной ячейки
                 }
-                this.context.fillRect(c * 20, r * 20, 20, 20); // Размер ячейки 20x20
-                this.context.strokeRect(c * 20, r * 20, 20, 20); // Граница ячейки
+                this.drawRoundedRect(c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
+                // this.context.strokeRect(c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize); // Граница ячейки
             }
         }
     
@@ -212,11 +271,68 @@ export class Game {
             for (let r = 0; r < this.currentPiece.shape.length; r++) {
                 for (let c = 0; c < this.currentPiece.shape[r].length; c++) {
                     if (this.currentPiece.shape[r][c]) {
-                        this.context.fillRect((this.currentPiece.x + c) * 20, (this.currentPiece.y + r) * 20, 20, 20);
+                        // Используем новую функцию для отрисовки блока с закругленными углами
+                        this.drawRoundedRect((this.currentPiece.x + c) * this.cellSize, (this.currentPiece.y + r) * this.cellSize, this.cellSize, this.cellSize, 3, this.currentPiece.color, 'rgba(0, 0, 0, 0.9)');
                     }
                 }
             }
         }
+
+        // Отрисовка боковой панели
+        const panelX = this.columns * this.cellSize; // X-координата начала панели
+        const panelWidth = 4 * this.cellSize; // Ширина панели, достаточная для отображения фигуры
+        const panelHeight = this.rows * this.cellSize; // Высота панели, равная высоте стакана
+
+        // Отрисовка фона панели
+        this.context.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Полупрозрачный фон
+        this.context.fillRect(panelX, 0, panelWidth, panelHeight);
+
+        // Отрисовка верхнего блока для следующей фигуры
+        const nextPieceBlockSize = 4 * this.cellSize; // Высота блока для следующей фигуры
+        this.context.fillStyle = 'rgba(0, 0, 0, 0.3)'; // Фон блока для следующей фигуры
+        this.context.fillRect(panelX, 0, panelWidth, nextPieceBlockSize);
+
+        // Отрисовка нижнего блока (пока пустого)
+        this.context.fillStyle = 'rgba(0, 0, 0, 0.1)'; // Фон нижнего блока
+        this.context.fillRect(panelX, nextPieceBlockSize, panelWidth, panelHeight - nextPieceBlockSize);
+
+        // Отрисовка следующей фигуры
+        this.drawNextPiece();
+
+        // Отрисовка границы стакана
+        this.drawBorder();
+
+        // Отрисовка границы боковой панели
+        this.context.strokeStyle = '#87CEEB'; // Цвет границы
+        this.context.lineWidth = 2; // Толщина линии
+        this.context.strokeRect(panelX, 0, panelWidth, panelHeight); // Рисуем прямоугольник вокруг панели
+    }
+
+    drawBorder() {
+        // Устанавливаем цвет границы стакана
+        this.context.strokeStyle = '#87CEEB';
+        // Устанавливаем толщину линии для границы
+        this.context.lineWidth = 2;
+        // Рисуем прямоугольник вокруг стакана
+        // Предполагаем, что отступ от краев канваса составляет 1 размер ячейки, отсюда и -2 и +4 в расчетах
+        this.context.strokeRect(1, 1, this.columns * this.cellSize - 2, this.rows * this.cellSize - 2);
+    }
+
+    drawRoundedRect(x, y, width, height, radius, fillColor, strokeColor) {
+        if (width < 2 * radius) radius = width / 2;
+        if (height < 2 * radius) radius = height / 2;
+        this.context.beginPath();
+        this.context.moveTo(x + radius, y);
+        this.context.arcTo(x + width, y, x + width, y + height, radius);
+        this.context.arcTo(x + width, y + height, x, y + height, radius);
+        this.context.arcTo(x, y + height, x, y, radius);
+        this.context.arcTo(x, y, x + width, y, radius);
+        this.context.closePath();
+        this.context.fillStyle = fillColor;
+        this.context.fill();
+        this.context.strokeStyle = strokeColor;
+        this.context.lineWidth = 0.2;
+        this.context.stroke();
     }
 
     update() {
@@ -227,14 +343,20 @@ export class Game {
             if (this.currentPiece) {
                 if (!this.checkCollision(0, 1)) {
                     this.currentPiece.y++;
+                    this.needsRedraw = true; // Требуется перерисовка, так как фигура двигалась
                 } else {
                     this.freezePiece();
+                    this.needsRedraw = true; // Требуется перерисовка, так как фигура двигалась
                 }
             }
             this.lastUpdateTime = now;
         }
 
-        this.draw();
+        if (this.needsRedraw) {
+            this.draw();
+            this.needsRedraw = false; // Сброс флага после перерисовки
+        }
+
         this.animationFrameId = requestAnimationFrame(this.update.bind(this));
     }
 

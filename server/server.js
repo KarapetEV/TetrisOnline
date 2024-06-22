@@ -8,10 +8,13 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const https = require('https');
 
-const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers, getUserStats } = require('./db');
+const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers, getUserStats, getLoginById } = require('./db');
 
 const app = express();
 const port = 8765;
+
+const userTimeouts = {};
+let debounceTimer;
 
 app.use(cors());
 app.use(express.json());
@@ -78,30 +81,26 @@ const io = require('socket.io')(httpsServer, {
       origin: "*", // Укажите здесь ваш домен или '*', если хотите разрешить все домены
       methods: ["GET", "POST"]
     }
-  });
+});
   
-  const userSockets = {};
+const userSockets = {};
   
-  io.on('connection', (socket) => {
-    const userTimeouts = {};
+io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
     // Функция для отправки списка онлайн игроков
-    async function sendOnlinePlayers() {
-        console.log(`Отрабатывает событие sendOnlinePlayers`);
-        let onlinePlayers = await getAllOnlinePlayers(); // Получаем список онлайн игроков
-        console.log(`В событии sendOnlinePlayers онлайн-игроков: ${onlinePlayers.length}`);
-        // Убедитесь, что onlinePlayers действительно является массивом
-        if (!Array.isArray(onlinePlayers)) {
-            console.error('getAllOnlinePlayers did not return an array');
-            onlinePlayers = []; // Используем пустой массив, если результат не массив
-        }
-        console.log(`online players from server: ${onlinePlayers.length}`);
-        io.emit('onlinePlayers', onlinePlayers); // Отправляем список всем подключенным клиентам
+    async function sendOnlinePlayersDebounced() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+            let onlinePlayers = await getAllOnlinePlayers();
+            // Проверка, что результат является массивом
+            if (!Array.isArray(onlinePlayers)) {
+                console.error('getAllOnlinePlayers did not return an array');
+                onlinePlayers = []; // Используем пустой массив, если результат не массив
+            }
+            io.emit('onlinePlayers', onlinePlayers);
+            console.log(`Отправлен обновленный список онлайн-игроков: ${onlinePlayers.length}`);
+        }, 500); // Задержка в 500 мс
     }
-    
-    // console.log(`Вызов sendOnlinePlayers в событии connection`);
-    // // Вызываем функцию при подключении нового пользователя и при других событиях, которые могут изменить статус онлайн
-    // sendOnlinePlayers();
   
     socket.on('login', async (userId) => {
         console.log(`Отрабатывает событие login с userId: ${userId}`);
@@ -113,12 +112,13 @@ const io = require('socket.io')(httpsServer, {
         }
 
         // Сохраняем соответствие между socket.id и userId
-        userSockets[socket.id] = userId;
+        socket.userId = userId;
+        userSockets[userId] = socket.id;
         // Обновляем статус пользователя на онлайн
         await updateUserOnlineStatus(userId, true);
 
-        console.log(`Вызов sendOnlinePlayers в событии login`);
-        sendOnlinePlayers();
+        console.log(`Вызов sendOnlinePlayersDebounced в событии login`);
+        sendOnlinePlayersDebounced();
     });
 
     socket.on('logout', async (userId) => {
@@ -130,8 +130,8 @@ const io = require('socket.io')(httpsServer, {
         } else {
             console.log('No userId provided for logout event');
         }
-        console.log(`Вызов sendOnlinePlayers в событии logout`);
-        sendOnlinePlayers();
+        console.log(`Вызов sendOnlinePlayersDebounced в событии logout`);
+        sendOnlinePlayersDebounced();
     });
   
     socket.on('disconnect', async () => {
@@ -142,30 +142,15 @@ const io = require('socket.io')(httpsServer, {
             // Запускаем таймер, который пометит пользователя как офлайн, если он не переподключится в течение заданного времени
             userTimeouts[userId] = setTimeout(async () => {
                 // Проверяем, не переподключился ли пользователь
-                if (!userSockets[socket.id]) {
+                if (!Object.values(userSockets).includes(userId)) {
                     await updateUserOnlineStatus(userId, false);
-                    delete userSockets[socket.id];
-                    console.log(`Статус пользователя ${userId} изменен на офлайн`);
-                    // sendOnlinePlayers();
+                    console.log(`Статус пользователя ${userId} изменен на оффлайн`);
+                    sendOnlinePlayersDebounced();
+                    delete userSockets[socket.id]; // Удаление записи о сокете
+                    delete userTimeouts[userId]; // Удаляем таймер из объекта
                 }
             }, 10000); // Установите таймаут, например, в 10 секунд
         }
-        // sendOnlinePlayers();
-    });
-
-    // Добавьте логику для отмены таймаута при переподключении пользователя
-    socket.on('reconnect', async () => {
-        const userId = userSockets[socket.id];
-        console.log(`userId when reconnect: ${userId}`);
-        console.log(`userTimeouts when reconnect: ${userTimeouts[userId]}`);
-        if (userId && userTimeouts[userId]) {
-            clearTimeout(userTimeouts[userId]);
-            delete userTimeouts[userId];
-        }
-        // Возможно, вам понадобится повторно вызвать updateUserOnlineStatus, если статус был изменен
-        await updateUserOnlineStatus(userId, true);
-        console.log(`Вызов sendOnlinePlayers в событии connection`);
-        sendOnlinePlayers();
     });
 
     socket.on('userOffline', () => {
@@ -177,7 +162,7 @@ const io = require('socket.io')(httpsServer, {
             updateUserOnlineStatus(userId, false).then(() => {
                 console.log(`Статус пользователя ${userId} обновлен на офлайн`);
                 // Опционально, можно отправить обновленный список онлайн-игроков всем подключенным клиентам
-                sendOnlinePlayers();
+                sendOnlinePlayersDebounced();
             }).catch((error) => {
                 console.error(`Ошибка при обновлении статуса пользователя ${userId}:`, error);
             });
@@ -185,6 +170,74 @@ const io = require('socket.io')(httpsServer, {
             console.log('Не удалось идентифицировать пользователя для события userOffline');
         }
     });
+
+    // Обработка отправки приглашения от одного клиента другому
+    socket.on('sendInvitation', (data) => {
+        const { recipientId } = data;
+        console.log(`Отправка приглашения, recipientId: ${recipientId}`);
+        // Найти сокет получателя по его ID и отправить ему приглашение
+        const recipientSocket = findSocketByUserId(recipientId);
+        console.log(`Отправка приглашения, recipientSocket: ${recipientSocket}`);
+        if (recipientSocket) {
+            console.log(`Отправка приглашения от ${socket.userId} к ${recipientId}`);
+            recipientSocket.emit('invitationReceived', { from: socket.userId });
+        }
+    });
+    
+    // Обработка отмены приглашения
+    socket.on('cancelInvitation', (data) => {
+        const { recipientId } = data;
+        // Найти сокет получателя и отправить ему уведомление об отмене приглашения
+        const recipientSocket = findSocketByUserId(recipientId);
+        if (recipientSocket) {
+            recipientSocket.emit('invitationCancelled', { from: socket.userId });
+        }
+    });
+
+    // Обработка события принятия приглашения
+    socket.on('acceptInvitation', async (data) => {
+        const { senderId, recipientId } = data;
+
+        console.log(`Событие на сервере - Принято приглашение от ${senderId}`);
+
+        const senderSocketId = userSockets[senderId]; // Находим ID сокета отправителя приглашения
+        const recipientSocketId = userSockets[recipientId]; // ID сокета получателя приглашения
+
+        console.log(`senderSocketId: ${senderSocketId}, recipientSocketId: ${recipientSocketId}`);
+        
+        if (senderSocketId && recipientSocketId) {
+            try {
+                console.log(`Событие на сервере - Уведомление ${senderSocketId} о принятии приглашения от ${socket.userId}`);
+                const senderLogin = await getLoginById(senderId);
+                const recipientLogin = await getLoginById(recipientId);
+
+                // Отправляем уведомление обоим игрокам о начале игры
+                console.log(`Emit signal to senderSocketId: ${recipientLogin} - ${recipientId}`);
+                io.to(senderSocketId).emit('gameStart', { opponentLogin: recipientLogin, opponentId: recipientId });
+                console.log(`Emit signal to recipientSocketId: ${senderLogin} - ${senderId}`);
+                io.to(recipientSocketId).emit('gameStart', { opponentLogin: senderLogin, opponentId: senderId });
+            } catch (error) {
+                console.error('Error in acceptInvitation event handler:', error);
+            }
+        }
+    });
+
+    // Сервер
+    socket.on('declineGame', (data) => {
+        const { senderId, recipientId } = data;
+        const senderSocketId = userSockets[senderId];
+        const recipientSocketId = userSockets[recipientId];
+
+        // Отправляем уведомление обоим игрокам об отмене игры
+        io.to(senderSocketId).emit('gameDeclined');
+        io.to(recipientSocketId).emit('gameDeclined');
+    });
+
+    // Функция для поиска сокета по userId
+    function findSocketByUserId(userId) {
+        const socketId = userSockets[userId];
+        return io.sockets.sockets.get(socketId);
+    }
  
     // Другие обработчики событий...
   });

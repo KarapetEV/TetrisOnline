@@ -401,7 +401,15 @@ export class Game {
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId); // Отменяем анимационный кадр
         }
+        this.endGame();
         // Здесь можно добавить дополнительную логику для обработки конца игры
+    }
+
+    // Генерация события завершения игры
+    endGame() {
+        // Генерация пользовательского события "gameEnd"
+        const event = new CustomEvent("gameEnd");
+        document.dispatchEvent(event);
     }
 }
 

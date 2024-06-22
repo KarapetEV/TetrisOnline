@@ -276,6 +276,11 @@ button:hover {
     box-sizing: border-box;
 }
 
+#players-list-container {
+    display: flex;
+    flex-direction: column;
+}
+
 .player-container {
     display: flex;
     justify-content: space-between;
@@ -299,7 +304,7 @@ button:hover {
 }
 
 /* Применяем процентные ширины для элементов внутри контейнера */
-.player-login { width: 70%; }
+.player-login { width: 70%; padding-left: 2px;}
 .player-rating { width: 20%; }
 .status-label { width: 10%; }
 
@@ -341,4 +346,48 @@ button:hover {
     text-align: center; /* Текст по центру */
     border-radius: 5px; /* Скругление углов */
     margin-bottom: 0;
+}
+
+/* Стили для модального окна */
+.modal {
+    display: none; /* Скрыть модальное окно по умолчанию */
+    position: fixed; /* Оставаться на месте при прокрутке */
+    z-index: 2; /* Сидеть на верху */
+    left: 0;
+    top: 0;
+    width: 100%; /* Полная ширина */
+    height: 100%; /* Полная высота */
+    overflow: auto; /* Включить прокрутку, если нужно */
+    background-color: rgba(0, 0, 0, 0.2); /* Черный фон с прозрачностью */
+  }
+  
+.modal-content {
+    display: flex; /* Используем flexbox для внутренних элементов */
+    flex-direction: column; /* Элементы располагаются вертикально */
+    align-items: center; /* Центрирование элементов по горизонтали */
+    color: #87CEEB;
+    font-size: 17px;
+    margin: 10px 0; /* Добавляет вертикальные отступы для элементов <p> */
+    text-align: center; /* Выравнивает текст по центру */
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.5); /* Черный фон с прозрачностью */
+    margin: 15% auto; /* 15% от верха и по центру */
+    padding: 0;
+    border-radius: 5px;;
+    border: 1px solid #87CEEB; /* Голубая граница */
+    width: 30%; /* Ширина модального окна */
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19); /* Тень для модального окна */
+}
+
+.modal-content > div {
+    justify-content: center;
+    width: 100%; /* Занимает всю ширину родителя */
+    text-align: center; /* Центрирует содержимое, включая кнопку */
+}
+  
+#opponentLogin {
+    display: inline-block;
+    padding: 5px;
+    border: 1px solid #87CEEB; /* Голубая граница вокруг имени соперника */
+    margin: 0 5px; /* Небольшой отступ вокруг имени соперника */
 }

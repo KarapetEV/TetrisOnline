@@ -8,11 +8,20 @@ import io from 'socket.io-client';
 // Установка соединения WebSocket
 const socket = io('https://192.168.0.37:8765');
 
+const INVITATION_SENT_ICON = '<i class="fas fa-exclamation-circle" style="color: green;"></i>'; // Значок для отправленного приглашения
+const INVITATION_RECEIVED_ICON = '<i class="fas fa-question-circle" style="color: yellow;"></i>'; // Значок для полученного приглашения
+// Массивы для отслеживания отправленных и полученных приглашений
+let sentInvitations = [];
+let receivedInvitations = [];
+let onlinePlayersList = [];
+let countdownInterval;
+let isGameActive = false;
+let currentOpponentId = null;
+
 window.onload = function() {
     // Проверяем статус авторизации и устанавливаем UI
     const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true'; // Преобразуем строку в boolean
     initializeHeader(isLoggedIn);
-    setupEventHandlers();
     if (isLoggedIn) {
         const userId = localStorage.getItem('userId');
         if (userId) {
@@ -23,6 +32,8 @@ window.onload = function() {
         restoreUIState(false);
     }
     setupWebSocket(); // Установка WebSocket соединения и обработчиков событий
+    createModalWindow();
+    setupEventHandlers();
 };
 
 function initializeHeader(isLoggedIn) {
@@ -92,7 +103,28 @@ function initializeHeader(isLoggedIn) {
     headerElement.appendChild(buttonsContainer);
 
     createUserStatsContainer();
+    initOnlinePlayersPanel();
     updateHeader(isLoggedIn);
+}
+
+function initOnlinePlayersPanel() {
+    const panel = document.getElementById('online-players-panel');
+    panel.innerHTML = ''; // Очищаем панель для инициализации
+
+    // Создаем и добавляем заголовок
+    const header = document.createElement('h3');
+    header.textContent = 'Players online';
+    panel.appendChild(header);
+
+    // Создаем и добавляем разделительную линию
+    const divider = document.createElement('hr');
+    divider.style.marginBottom = '20px';
+    panel.appendChild(divider);
+
+    // Создаем контейнер для списка игроков
+    const playersListContainer = document.createElement('div');
+    playersListContainer.id = 'players-list-container';
+    panel.appendChild(playersListContainer);
 }
 
 function updateHeader(isLoggedIn) {
@@ -189,6 +221,7 @@ function setupEventHandlers() {
     const registerForm = document.getElementById('register-form');
     const singButtonsContainer = document.getElementById('sign-buttons-container');
     const playButton = document.getElementById('play-button');
+    const declineButton = document.getElementById('declineButton'); 
 
     // Обработчик для кнопки "Вход"
     signInButton.addEventListener('click', () => {
@@ -208,9 +241,7 @@ function setupEventHandlers() {
     });
 
     playButton.addEventListener('click', () => {
-        const game = new Game();
-        console.log(`Start playing...`);
-        game.start();
+        startGame();
     });
 
     // Обработчик для кнопки "Войти" на форме авторизации
@@ -227,7 +258,6 @@ function setupEventHandlers() {
         }
     
         try {
-            console.log(`Waiting response for login`);
             const response = await fetch('https://192.168.0.37:8765/api/auth/login', {
                 method: 'POST',
                 headers: {
@@ -235,14 +265,12 @@ function setupEventHandlers() {
                 },
                 body: JSON.stringify({ login, password }),
             });
-            console.log(`Received response: ${response}`);
             if (response.ok) {
                 const data = await response.json();
                 // Сохраняем токен и другие данные в localStorage
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('userId', data.userId);
-                console.log('userId сохранен в localStorage:', data.userId);
                 localStorage.setItem('userLogin', login);
 
                 if (data && data.stats) {
@@ -358,6 +386,20 @@ function setupEventHandlers() {
         registerForm.style.display = 'none';
         authForm.style.display = 'block';
     });
+
+    // Обработчик события для кнопки "Отказаться"
+    declineButton.addEventListener('click', () => {
+        // Получаем myId из localStorage
+        const myId = localStorage.getItem('userId');
+
+        // Проверяем, что myId действительно получен
+        if (myId && currentOpponentId) {
+            // Отправляем сигнал declineGame на сервер, включая myId
+            socket.emit('declineGame', { senderId: currentOpponentId, recipientId: myId });
+        } else {
+            console.log("Ошибка: Не удалось получить идентификатор пользователя из localStorage.");
+        }        
+    });
 }
 
 function setupWebSocket() {
@@ -368,15 +410,11 @@ function setupWebSocket() {
             
         // Проверяем, авторизован ли пользователь
         const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-        console.log(`Connect в WS - isLoggedIn: ${isLoggedIn}`);
         if (isLoggedIn) {
             // Если пользователь авторизован, отправляем информацию о его статусе на сервер
             const userId = localStorage.getItem('userId');
-            console.log(`Connect в WS - userId: ${userId}`);
             if (userId) {
-                console.log('Отправка login с userId после перезагрузки:', userId);
                 socket.emit('login', userId);
-                console.log('Повторная отправка login после переподключения');
             } else {
                 console.error('UserId not found');
             }
@@ -386,7 +424,8 @@ function setupWebSocket() {
     // Обработка события 'onlinePlayers', которое обновляет список онлайн-игроков
     socket.on('onlinePlayers', (onlinePlayers) => {
         console.log('Online players:', onlinePlayers);
-        updateOnlinePlayers(onlinePlayers);
+        onlinePlayersList = onlinePlayers;
+        updateOnlinePlayers();
     });
 
     // Обработка других событий WebSocket, если требуется
@@ -396,11 +435,9 @@ function setupWebSocket() {
     window.addEventListener('beforeunload', () => {
         const userId = localStorage.getItem('userId'); // Получаем userId из localStorage
         if (userId) {
-            console.log('Отправка logout с userId:', userId);
             socket.emit('logout', userId); // Уведомляем сервер о выходе пользователя
         } else {
             // Если userId по какой-то причине отсутствует, можно отправить другое событие или обработать этот случай иначе
-            console.log('Отправка userOffline');
             socket.emit('userOffline'); // Уведомляем сервер, что пользователь уходит офлайн
         }
         socket.disconnect(); // Отключаемся от WebSocket сервера
@@ -415,22 +452,14 @@ function setupWebSocket() {
     });
 }
 
-function updateOnlinePlayers(players) {
-    // Получаем элемент панели онлайн-игроков
-    const panel = document.getElementById('online-players-panel');
-    // Очищаем текущий список
-    panel.innerHTML = '';
-    console.log(`очистка панели`);
-    // Создаем и добавляем заголовок
-    const header = document.createElement('h3');
-    header.textContent = 'Players online';
-    panel.appendChild(header);
-    console.log(`добавили надпись на панель`);
+function updateOnlinePlayers() {
+    console.log(`Всего получегно приглашений: ${receivedInvitations.length}`);
+    const players = onlinePlayersList;
+    console.log(`Список игроков в updateOnlinePlayers: ${players}`);
 
-    // Создаем и добавляем разделительную линию
-    const divider = document.createElement('hr');
-    divider.style.marginBottom = '20px';
-    panel.appendChild(divider);
+    // Получаем контейнер для списка игроков
+    const playersListContainer = document.getElementById('players-list-container');
+    playersListContainer.innerHTML = ''; // Очищаем текущий список игроков
 
     // Проверяем, что полученный список игроков является массивом
     if (Array.isArray(players)) {
@@ -439,7 +468,7 @@ function updateOnlinePlayers(players) {
         players.forEach(player => {
             const playerContainer = document.createElement('div');
             playerContainer.classList.add('player-container');
-            playerContainer.onclick = () => sendInvitation(player.id);
+            playerContainer.onclick = () => sendInvitation(player.id, player.login);
 
             const loginSpan = document.createElement('span');
             loginSpan.classList.add('player-login');
@@ -453,23 +482,175 @@ function updateOnlinePlayers(players) {
 
             const statusLabel = document.createElement('span');
             statusLabel.classList.add('status-label');
-            statusLabel.innerHTML = '<i class="fas fa-exclamation-circle" style="color: green;"></i>';
             statusLabel.style.width = '10%';
+            // Установка значка статуса в зависимости от состояния приглашения
+            if (invitationSentTo(player.id)) {
+                console.log(`Установка значка отправки приглашения`);
+                statusLabel.innerHTML = INVITATION_SENT_ICON; // Приглашение отправлено
+            } else if (invitationReceivedFrom(player.id)) {
+                console.log(`Установка значка получения приглашения`);
+                statusLabel.innerHTML = INVITATION_RECEIVED_ICON; // Приглашение получено
+            } else {
+                statusLabel.innerHTML = ''; // Нет значка по умолчанию
+            }
 
             playerContainer.appendChild(loginSpan);
             playerContainer.appendChild(ratingSpan);
             playerContainer.appendChild(statusLabel);
-            panel.appendChild(playerContainer);
+            playersListContainer.appendChild(playerContainer);
         });
     } else {
         console.error('Expected players to be an array, but got:', players);
     }
 }
 
-function sendInvitation(playerId) {
-    console.log(`Отправлено приглашение игроку с ID: ${playerId}`);
-    // Здесь будет логика отправки приглашения
+function sendInvitation(playerId, playerLogin) {
+    // Предотвращаем клики по игрокам во время игры
+    if (isGameActive) {
+        console.log("Игра уже идет. Клики по игрокам заблокированы.");
+        return;
+    }
+    // Проверяем, получено ли приглашение от этого игрока
+    if (invitationReceivedFrom(playerId)) {
+        console.log(`Проверяем, что получено приглашение от ${playerLogin}`);
+        acceptInvitationEvent(playerId, playerLogin);
+    } else {
+        // Проверяем, было ли уже отправлено приглашение этому игроку
+        console.log(`Запуск sendInvitation для playerId: ${playerId}`);
+        if (invitationSentTo(playerId)) {
+            // Отменяем приглашение
+            cancelInvitation(playerId);
+            alert("Приглашение отменено.");
+        } else {
+            // Проверяем, не превышено ли количество отправленных приглашений
+            console.log(`Осталось приглашений: ${sentInvitations.length}`);
+            if (sentInvitations.length >= 3) {
+                alert("Вы не можете отправить более трех приглашений.");
+                return;
+            }
+
+            console.log(`Вызываем событие sendInvitation`);
+            // Отправляем приглашение игроку с playerId через WebSocket
+            socket.emit('sendInvitation', { recipientId: playerId });
+
+            console.log(`Вызываем метод  addSentInvitation`);
+            // Добавляем playerId в список отправленных приглашений
+            addSentInvitation(playerId);
+            // alert("Приглашение отправлено.");
+        }
+    }
+
+    console.log(`Обновляем список онлайн-игроков после отправки приглашения`);
+    // Обновляем список онлайн-игроков
+    updateOnlinePlayers();
 }
+
+function acceptInvitationEvent(playerId) {
+    // Получаем myId из localStorage
+    const myId = localStorage.getItem('userId');
+
+    // Проверяем, что myId действительно получен
+    if (myId) {
+        // Отправляем сигнал acceptInvitation на сервер, включая myId
+        socket.emit('acceptInvitation', { senderId: playerId, recipientId: myId });
+    } else {
+        console.log("Ошибка: Не удалось получить идентификатор пользователя из localStorage.");
+    }
+}
+
+// Функция для отмены уже отправленного приглашения
+function cancelInvitation(playerId) {
+    // Удаляем playerId из списка отправленных приглашений
+    sentInvitations = sentInvitations.filter(id => id !== playerId);
+
+    // Отправляем сигнал об отмене приглашения через WebSocket
+    socket.emit('cancelInvitation', { recipientId: playerId });
+}
+
+// Функция для проверки, было ли отправлено приглашение игроку с данным ID
+function invitationSentTo(playerId) {
+    console.log(`Вызван метод проверки отправки приглашения`);
+    return sentInvitations.includes(playerId);
+}
+
+// Функция для проверки, было ли получено приглашение от игрока с данным ID
+function invitationReceivedFrom(playerId) {
+    console.log(`Вызван метод проверки получения приглашения`);
+    return receivedInvitations.includes(playerId);
+}
+
+// Функция для добавления ID игрока в массив отправленных приглашений
+function addSentInvitation(playerId) {
+    console.log(`Запуск метода addSentInvitation дял playerId: ${playerId}`);
+    if (!invitationSentTo(playerId)) {
+        sentInvitations.push(playerId);
+        updateOnlinePlayers();
+    }
+}
+
+// Функция для добавления ID игрока в массив полученных приглашений
+function addReceivedInvitation(playerId) {
+    if (!invitationReceivedFrom(playerId)) {
+        receivedInvitations.push(playerId);
+        console.log(`Полученные приглашения: ${receivedInvitations}`);
+        updateOnlinePlayers();
+    }
+}
+
+// Обработка получения приглашения
+socket.on('invitationReceived', (data) => {
+    const { from: senderId } = data;
+    console.log(`Получено приглашение от игрока с ID: ${senderId}`);
+
+    // Добавляем ID отправителя в список полученных приглашений
+    addReceivedInvitation(senderId);
+
+    console.log(`После добавления в список получено приглашение от игрока с ID: ${senderId}`);
+    
+    // Обновляем интерфейс, чтобы отразить полученное приглашение
+    updateOnlinePlayers();
+});
+
+// Обработка отмены приглашения
+socket.on('invitationCancelled', (data) => {
+    const { from: senderId } = data;
+    console.log(`Приглашение от игрока с ID: ${senderId} отменено`);
+    receivedInvitations = receivedInvitations.filter(id => id !== senderId);
+
+    // Обновляем интерфейс, чтобы отразить полученное приглашение
+    updateOnlinePlayers();
+});
+
+socket.on('gameStart', (data) => {
+    const { opponentLogin, opponentId } = data; // ID игрока, который принял ваше приглашение
+    currentOpponentId = opponentId;
+
+    console.log(`GameStart with ${opponentLogin} - ${opponentId}`);
+
+    // Показываем модальное окно с обратным отсчетом
+    showInvitationModal(opponentLogin);
+
+    // Очищаем значок приглашения у текущего пользователя
+    receivedInvitations = receivedInvitations.filter(id => id !== opponentId);
+    console.log(`Событие в клиенте - Принято приглашение от ${opponentId}`);
+    // Удаление ID игрока из массива отправленных приглашений
+    sentInvitations = sentInvitations.filter(id => id !== opponentId);
+
+    // Обновление интерфейса для отражения изменений
+    updateOnlinePlayers();
+});
+
+socket.on('gameDeclined', () => {
+    // Останавливаем обратный отсчет и закрываем модальное окно
+    clearInterval(countdownInterval);
+    const invitationModal = document.getElementById('invitationModal');
+    const modalContent = document.getElementById("modal-content");
+    invitationModal.style.display = 'none';
+    modalContent.style.display = 'none';
+
+    console.log("Игра отменена. Обратный отсчет остановлен.");
+    // Выполнение других действий для отмены игры, если это необходимо
+});
 
 function setUserOnline(userId) {
     console.log(`Вызов метода setUserOnline для userId: ${userId}`);
@@ -551,9 +732,104 @@ function updateAndShowUserStats(total, win, rank, lose) {
     document.querySelector('#user-stats-container div:nth-child(4)').textContent = `LOSE: ${lose}`;
 }
 
-// window.addEventListener('beforeunload', () => {
-//     // Отправляем событие 'userOffline' на сервер через WebSocket
-//     // с идентификатором пользователя в качестве данных
-//     socket.emit('userOffline', userId);
-//     socket.disconnect();
-// });
+// Функция для начала игры
+function startGame() {
+    isGameActive = true;
+    const game = new Game();
+    console.log(`Start playing...`);
+    game.start();
+}
+
+function createModalWindow() {
+    // Создаем основной контейнер модального окна
+    const modal = document.createElement('div');
+    modal.id = 'invitationModal';
+    modal.className = 'modal';
+
+    // Создаем контент модального окна
+    const modalContent = document.createElement('div');
+    modalContent.id = 'modal-content';
+    modalContent.className = 'modal-content';
+
+    // Создаем параграф с текстом приглашения
+    const invitationText = document.createElement('p');
+    invitationText.id = 'invitationText';
+    invitationText.textContent = 'Игра с ';
+
+    // Создаем span для логина соперника
+    const opponentLogin = document.createElement('span');
+    opponentLogin.id = 'opponentLogin';
+
+    // Добавляем span в параграф с текстом приглашения
+    invitationText.appendChild(opponentLogin);
+    invitationText.append(' начнется через ');
+
+    // Создаем параграф с обратным отсчетом
+    const countdownText = document.createElement('p');
+    countdownText.id = 'countdownText';
+
+    // Создаем span для обратного отсчета
+    const countdown = document.createElement('span');
+    countdown.id = 'countdown';
+    countdown.textContent = '10';
+
+    // Добавляем текст и span в параграф обратного отсчета
+    countdownText.appendChild(countdown);
+    countdownText.append(' секунд');
+
+    // Создаем контейнер для кнопки
+    const buttonContainer = document.createElement('div');
+
+    // Создаем кнопку отказа
+    const declineButton = document.createElement('button');
+    declineButton.id = 'declineButton';
+    declineButton.textContent = 'Отказаться';
+
+    // Добавляем кнопку в ее контейнер
+    buttonContainer.appendChild(declineButton);
+
+    // Собираем все части вместе
+    modalContent.appendChild(invitationText);
+    modalContent.appendChild(countdownText);
+    modalContent.appendChild(buttonContainer);
+    modal.appendChild(modalContent);
+
+    // Добавляем модальное окно в body
+    document.body.appendChild(modal);
+}
+
+function showInvitationModal(opponentName) {
+    // Получение элементов модального окна
+    const invitationModal = document.getElementById('invitationModal');
+    const opponentLogin = document.getElementById('opponentLogin');
+    const countdownElement = document.getElementById('countdown');
+    const modalContent = document.getElementById("modal-content");
+
+    // Установка имени соперника и показ модального окна
+    opponentLogin.textContent = opponentName;
+    invitationModal.style.display = 'block';
+    modalContent.style.display = 'flex';
+
+    // Начало обратного отсчета
+    let countdown = 10;
+    countdownElement.textContent = countdown;
+    countdownInterval = setInterval(() => {
+        countdown -= 1;
+        countdownElement.textContent = countdown;
+        if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            invitationModal.style.display = 'none';
+            modalContent.style.display = 'none';
+            // Здесь можно добавить логику начала игры
+            startGame();
+        }
+    }, 1000);
+}
+
+// Слушатель события завершения игры
+document.addEventListener("gameEnd", function() {
+    console.log("Игра закончилась. Обновляем рейтинг и статистику.");
+    isGameActive = false;
+    // Здесь код для обновления рейтинга и статистики игроков
+});
+

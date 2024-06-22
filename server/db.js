@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const { cli } = require('webpack');
 
 const pool = new Pool({
     user: 'postgres',
@@ -130,11 +131,25 @@ async function getUserStats(userId) {
     }
 }
 
+async function getLoginById(userId) {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT login FROM users WHERE id = $1', [userId]);
+        return result.rows[0].login;
+    } catch (error) {
+        console.error('Error in getLoginById:', error);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 module.exports = {
     findUser,
     createUser,
     updateUserOnlineStatus,
     validateUser,
     getAllOnlinePlayers,
-    getUserStats
+    getUserStats,
+    getLoginById
 };

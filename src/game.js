@@ -1,7 +1,13 @@
 export class Game {
-    constructor() {
-        this.canvas = document.getElementById('tetrisCanvas');
+    constructor(opponentId, socket) {
+        this.opponentId = opponentId;
+        this.socket = socket;
+        this.canvas = document.getElementById('playerCanvas');
         this.context = this.canvas.getContext('2d');
+        // Добавляем канвас и контекст соперника
+        this.opponentCanvas = document.getElementById('opponentCanvas');
+        this.opponentContext = this.opponentCanvas.getContext('2d');
+
         this.rows = 20; // Количество строк
         this.columns = 10; // Количество столбцов
         this.board = []; // Игровое поле
@@ -214,32 +220,32 @@ export class Game {
         return rotatedShape;
     }
 
-    drawNextPiece() {
-        const panelX = this.columns * this.cellSize; // X-координата начала панели
+    drawNextPiece(context, nextPiece, offsetX, offsetY) {
         const panelWidth = 4 * this.cellSize; // Ширина панели, достаточная для отображения фигуры
         const nextPieceBlockSize = 4 * this.cellSize; // Высота блока для следующей фигуры
     
         // Очищаем область для следующей фигуры
-        this.context.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Полупрозрачный фон
-        this.context.fillRect(panelX, 0, panelWidth, nextPieceBlockSize);
+        context.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Полупрозрачный фон
+        context.fillRect(offsetX, offsetY, panelWidth, nextPieceBlockSize);
     
-        if (this.nextPiece) {
+        if (nextPiece) {
             // Вычисляем смещение для центрирования следующей фигуры в блоке
-            const offsetX = panelX + (panelWidth - this.nextPiece.shape[0].length * this.cellSize) / 2;
-            const offsetY = (nextPieceBlockSize - this.nextPiece.shape.length * this.cellSize) / 2;
+            const pieceOffsetX = offsetX + (panelWidth - nextPiece.shape[0].length * this.cellSize) / 2;
+            const pieceOffsetY = offsetY + (nextPieceBlockSize - nextPiece.shape.length * this.cellSize) / 2;
     
             // Отрисовка следующей фигуры
-            this.context.fillStyle = this.nextPiece.color;
-            for (let r = 0; r < this.nextPiece.shape.length; r++) {
-                for (let c = 0; c < this.nextPiece.shape[r].length; c++) {
-                    if (this.nextPiece.shape[r][c]) {
+            context.fillStyle = nextPiece.color;
+            for (let r = 0; r < nextPiece.shape.length; r++) {
+                for (let c = 0; c < nextPiece.shape[r].length; c++) {
+                    if (nextPiece.shape[r][c]) {
                         this.drawRoundedRect(
-                            offsetX + c * this.cellSize,
-                            offsetY + r * this.cellSize,
+                            context,
+                            pieceOffsetX + c * this.cellSize,
+                            pieceOffsetY + r * this.cellSize,
                             this.cellSize,
                             this.cellSize,
                             3,
-                            this.nextPiece.color,
+                            nextPiece.color,
                             '#87CEEB'
                         );
                     }
@@ -259,8 +265,7 @@ export class Game {
                 if (this.board[r][c] !== '') {
                     fillColor = this.board[r][c]; // Цвет заполненной ячейки
                 }
-                this.drawRoundedRect(c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
-                // this.context.strokeRect(c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize); // Граница ячейки
+                this.drawRoundedRect(this.context, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
             }
         }
     
@@ -272,7 +277,7 @@ export class Game {
                 for (let c = 0; c < this.currentPiece.shape[r].length; c++) {
                     if (this.currentPiece.shape[r][c]) {
                         // Используем новую функцию для отрисовки блока с закругленными углами
-                        this.drawRoundedRect((this.currentPiece.x + c) * this.cellSize, (this.currentPiece.y + r) * this.cellSize, this.cellSize, this.cellSize, 3, this.currentPiece.color, 'rgba(0, 0, 0, 0.9)');
+                        this.drawRoundedRect(this.context, (this.currentPiece.x + c) * this.cellSize, (this.currentPiece.y + r) * this.cellSize, this.cellSize, this.cellSize, 3, this.currentPiece.color, 'rgba(0, 0, 0, 0.9)');
                     }
                 }
             }
@@ -297,10 +302,10 @@ export class Game {
         this.context.fillRect(panelX, nextPieceBlockSize, panelWidth, panelHeight - nextPieceBlockSize);
 
         // Отрисовка следующей фигуры
-        this.drawNextPiece();
+        this.drawNextPiece(this.context, this.nextPiece, panelX, 0);
 
         // Отрисовка границы стакана
-        this.drawBorder();
+        this.drawBorder(this.context);
 
         // Отрисовка границы боковой панели
         this.context.strokeStyle = '#87CEEB'; // Цвет границы
@@ -308,45 +313,49 @@ export class Game {
         this.context.strokeRect(panelX, 0, panelWidth, panelHeight); // Рисуем прямоугольник вокруг панели
     }
 
-    drawBorder() {
+    drawBorder(context) {
         // Устанавливаем цвет границы стакана
-        this.context.strokeStyle = '#87CEEB';
+        context.strokeStyle = '#87CEEB';
         // Устанавливаем толщину линии для границы
-        this.context.lineWidth = 2;
+        context.lineWidth = 2;
         // Рисуем прямоугольник вокруг стакана
         // Предполагаем, что отступ от краев канваса составляет 1 размер ячейки, отсюда и -2 и +4 в расчетах
-        this.context.strokeRect(1, 1, this.columns * this.cellSize - 2, this.rows * this.cellSize - 2);
+        context.strokeRect(1, 1, this.columns * this.cellSize - 2, this.rows * this.cellSize - 2);
     }
 
-    drawRoundedRect(x, y, width, height, radius, fillColor, strokeColor) {
+    drawRoundedRect(context, x, y, width, height, radius, fillColor, strokeColor) {
         if (width < 2 * radius) radius = width / 2;
         if (height < 2 * radius) radius = height / 2;
-        this.context.beginPath();
-        this.context.moveTo(x + radius, y);
-        this.context.arcTo(x + width, y, x + width, y + height, radius);
-        this.context.arcTo(x + width, y + height, x, y + height, radius);
-        this.context.arcTo(x, y + height, x, y, radius);
-        this.context.arcTo(x, y, x + width, y, radius);
-        this.context.closePath();
-        this.context.fillStyle = fillColor;
-        this.context.fill();
-        this.context.strokeStyle = strokeColor;
-        this.context.lineWidth = 0.2;
-        this.context.stroke();
+        context.beginPath();
+        context.moveTo(x + radius, y);
+        context.arcTo(x + width, y, x + width, y + height, radius);
+        context.arcTo(x + width, y + height, x, y + height, radius);
+        context.arcTo(x, y + height, x, y, radius);
+        context.arcTo(x, y, x + width, y, radius);
+        context.closePath();
+        context.fillStyle = fillColor;
+        context.fill();
+        context.strokeStyle = strokeColor;
+        context.lineWidth = 0.2;
+        context.stroke();
     }
 
     update() {
         if (this.isGameOver) return; // Прекращаем обновление, если игра завершена
         const now = Date.now();
         const deltaTime = now - this.lastUpdateTime;
+        let stateChanged = false; // Флаг, указывающий на изменение состояния игры
+
         if (deltaTime > this.updateInterval) {
             if (this.currentPiece) {
                 if (!this.checkCollision(0, 1)) {
                     this.currentPiece.y++;
                     this.needsRedraw = true; // Требуется перерисовка, так как фигура двигалась
+                    stateChanged = true; // Состояние игры изменилось
                 } else {
                     this.freezePiece();
                     this.needsRedraw = true; // Требуется перерисовка, так как фигура двигалась
+                    // Не устанавливаем stateChanged, так как freezePiece уже вызывает sendGameState
                 }
             }
             this.lastUpdateTime = now;
@@ -355,6 +364,11 @@ export class Game {
         if (this.needsRedraw) {
             this.draw();
             this.needsRedraw = false; // Сброс флага после перерисовки
+        }
+
+        // Отправляем состояние игры, если произошли значимые изменения
+        if (stateChanged) {
+            this.sendGameState();
         }
 
         this.animationFrameId = requestAnimationFrame(this.update.bind(this));
@@ -378,6 +392,10 @@ export class Game {
     
         // Проверка на заполненные линии и их удаление
         this.checkLines();
+
+        // Отправляем обновленное состояние игры на сервер
+        this.sendGameState();
+
         // Генерация новой фигуры
         this.spawnNewPiece();
     }
@@ -411,6 +429,102 @@ export class Game {
         const event = new CustomEvent("gameEnd");
         document.dispatchEvent(event);
     }
+
+    drawOpponentField(gameState) {
+        // Очистите канвас соперника
+        this.opponentContext.clearRect(0, 0, this.opponentCanvas.width, this.opponentCanvas.height);
+    
+        // Перебираем массив gameState и отрисовываем каждый блок
+        for (let r = 0; r < gameState.boardState.length; r++) {
+            for (let c = 0; c < gameState.boardState[r].length; c++) {
+                let fillColor = 'rgba(0, 0, 0, 0.7)'; // Цвет пустой ячейки
+                // Если ячейка не пустая, отрисовываем блок
+                if (gameState.boardState[r][c] !== '') {
+                    fillColor = gameState.boardState[r][c];
+                }
+                this.drawRoundedRect(
+                    this.opponentContext,
+                    c * this.cellSize, // X координата блока
+                    r * this.cellSize, // Y координата блока
+                    this.cellSize,     // Ширина блока
+                    this.cellSize,     // Высота блока
+                    3, // Радиус закругления
+                    fillColor, // Цвет заполненной ячейки
+                    '#87CEEB' // Цвет границы блока
+                );
+            }
+        }
+        
+        // Отрисовка боковой панели соперника
+        const panelX = this.columns * this.cellSize; // X-координата начала панели
+        const panelWidth = 4 * this.cellSize; // Ширина панели
+        const panelHeight = this.rows * this.cellSize; // Высота панели
+
+        // Отрисовка фона панели
+        this.opponentContext.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.opponentContext.fillRect(panelX, 0, panelWidth, panelHeight);
+
+        // Отрисовка верхнего блока для следующей фигуры
+        const nextPieceBlockSize = 4 * this.cellSize;
+        this.opponentContext.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.opponentContext.fillRect(panelX, 0, panelWidth, nextPieceBlockSize);
+
+        // Отрисовка нижнего блока
+        this.opponentContext.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        this.opponentContext.fillRect(panelX, nextPieceBlockSize, panelWidth, panelHeight - nextPieceBlockSize);
+
+        // Отрисовка следующей фигуры соперника
+        if (gameState.nextPiece) {
+            this.drawNextPiece(this.opponentContext, gameState.nextPiece, panelX, 0);
+        }
+
+        // Отрисовка границы стакана соперника
+        this.drawBorder(this.opponentContext);
+
+        // Отрисовка границы боковой панели соперника
+        this.opponentContext.strokeStyle = '#87CEEB';
+        this.opponentContext.lineWidth = 2;
+        this.opponentContext.strokeRect(panelX, 0, panelWidth, panelHeight);
+    }
+
+    sendGameState() {
+        const gameState = this.getGameState(); // Получаем текущее состояние игры
+        const nextPieceInfo = {
+            shape: this.nextPiece.shape,
+            color: this.nextPiece.color
+        };
+        this.socket.emit('gameStateUpdate', { opponentId: this.opponentId, gameState: gameState, nextPiece: nextPieceInfo });
+    }
+
+    getGameState() {
+        // Создаем копию игрового поля
+        const state = this.board.map(row => row.slice());
+    
+        // Если есть текущая падающая фигура, добавляем её в состояние
+        if (this.currentPiece) {
+            for (let r = 0; r < this.currentPiece.shape.length; r++) {
+                for (let c = 0; c < this.currentPiece.shape[r].length; c++) {
+                    if (this.currentPiece.shape[r][c]) {
+                        // Проверяем, чтобы не выйти за пределы доски
+                        if (this.currentPiece.y + r >= 0) {
+                            state[this.currentPiece.y + r][this.currentPiece.x + c] = this.currentPiece.color;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Добавляем информацию о следующей фигуре
+        const nextPieceState = {
+            shape: this.nextPiece.shape,
+            color: this.nextPiece.color
+        };
+    
+        return {
+            boardState: state,
+            nextPiece: nextPieceState
+        };
+    }
 }
 
 class Piece {
@@ -420,6 +534,4 @@ class Piece {
         this.x = 0; // Начальная позиция по горизонтали
         this.y = 0; // Начальная позиция по вертикали
     }
-
-    // Методы для управления фигурой (вращение, перемещение)...
 }

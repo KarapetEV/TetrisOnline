@@ -17,6 +17,7 @@ let onlinePlayersList = [];
 let countdownInterval;
 let isGameActive = false;
 let currentOpponentId = null;
+let gameInstance = null;
 
 window.onload = function() {
     // Проверяем статус авторизации и устанавливаем UI
@@ -220,7 +221,6 @@ function setupEventHandlers() {
     const authForm = document.getElementById('auth-form');
     const registerForm = document.getElementById('register-form');
     const singButtonsContainer = document.getElementById('sign-buttons-container');
-    const playButton = document.getElementById('play-button');
     const declineButton = document.getElementById('declineButton'); 
 
     // Обработчик для кнопки "Вход"
@@ -238,10 +238,6 @@ function setupEventHandlers() {
     // Обработчик для кнопки "Выход"
     logoutButton.addEventListener('click', () => {
         logout();
-    });
-
-    playButton.addEventListener('click', () => {
-        startGame();
     });
 
     // Обработчик для кнопки "Войти" на форме авторизации
@@ -536,7 +532,6 @@ function sendInvitation(playerId, playerLogin) {
             console.log(`Вызываем метод  addSentInvitation`);
             // Добавляем playerId в список отправленных приглашений
             addSentInvitation(playerId);
-            // alert("Приглашение отправлено.");
         }
     }
 
@@ -652,6 +647,13 @@ socket.on('gameDeclined', () => {
     // Выполнение других действий для отмены игры, если это необходимо
 });
 
+socket.on('opponentGameStateUpdate', (data) => {
+    const { gameState } = data;
+    if (gameInstance) {
+        gameInstance.drawOpponentField(gameState); // Обновление поля соперника
+    }
+});
+
 function setUserOnline(userId) {
     console.log(`Вызов метода setUserOnline для userId: ${userId}`);
     if (!localStorage.getItem('loginSent')) {
@@ -735,9 +737,10 @@ function updateAndShowUserStats(total, win, rank, lose) {
 // Функция для начала игры
 function startGame() {
     isGameActive = true;
-    const game = new Game();
+    gameInstance = new Game(currentOpponentId, socket);
     console.log(`Start playing...`);
-    game.start();
+    gameInstance.start();
+    gameInstance.sendGameState();
 }
 
 function createModalWindow() {

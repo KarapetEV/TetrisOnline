@@ -233,6 +233,18 @@ io.on('connection', (socket) => {
         io.to(recipientSocketId).emit('gameDeclined');
     });
 
+    socket.on('gameStateUpdate', (data) => {
+        const { opponentId, gameState } = data;
+        const opponentSocketId = userSockets[opponentId]; // Находим ID сокета соперника
+        if (opponentSocketId) {
+            // Пересылаем состояние игры сопернику
+            io.to(opponentSocketId).emit('opponentGameStateUpdate', { gameState: gameState });
+        } else {
+            // Обработка случая, когда сокет соперника не найден
+            console.log(`Socket ID for opponent ${opponentId} not found.`);
+        }
+    });
+
     // Функция для поиска сокета по userId
     function findSocketByUserId(userId) {
         const socketId = userSockets[userId];

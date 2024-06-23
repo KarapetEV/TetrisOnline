@@ -253,8 +253,11 @@ button:hover {
     border: 1px solid #4682B4;
     border-radius: 10px;
     margin: 0;
+    gap: 100px;
     overflow: hidden;
 }
+
+
 
 #online-players-panel {
     position: fixed; /* Фиксированное положение справа */

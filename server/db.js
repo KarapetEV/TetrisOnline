@@ -144,6 +144,35 @@ async function getLoginById(userId) {
     }
 }
 
+async function updatePlayerStats(userId, isWinner, newRating) {
+    const client = await pool.connect();
+    try {
+        if (isWinner) {
+            await client.query(`UPDATE game_info SET win = win + 1, rating = $1 WHERE user_id = $2`, [newRating, userId]);
+        } else {
+            await client.query(`UPDATE game_info SET lose = lose + 1, rating = $1 WHERE user_id = $2`, [newRating, userId]);
+        }
+    } catch (error) {
+        console.error('Error in updatePlayerStats:', error);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function addGameRecord(playerOneId, playerTwoId, startTime, endTime, status) {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(`INSERT INTO games (player_one_id, player_two_id, start_time, end_time, status) VALUES ($1, $2, $3, $4, $5)`, [newRating, userId]);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error in updatePlayerStats:', error);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 module.exports = {
     findUser,
     createUser,
@@ -151,5 +180,7 @@ module.exports = {
     validateUser,
     getAllOnlinePlayers,
     getUserStats,
-    getLoginById
+    getLoginById,
+    updatePlayerStats,
+    addGameRecord
 };

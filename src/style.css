@@ -24,7 +24,7 @@ header {
     align-items: center; /* Центрирование по вертикали */
     padding: 5px 10px;
     background: rgba(0, 0, 0, 0.8);
-    height: 80px;
+    height: 70px;
     border: 1px solid #4682B4;
 }
 
@@ -108,8 +108,8 @@ header::before {
 }
 
 header button {
-    padding: 4px 8px;
-    font-size: 13px;
+    padding: 2px 6px;
+    font-size: 10px;
     background-color: #007bff;
     color: white;
     border: none;
@@ -244,25 +244,25 @@ button:hover {
 
 #game-container {
     background-color: rgba(0, 0, 0, 0.8); /* Цвет фона */
-    flex-grow: 1;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     width: calc(100vw - 200px); /* Уменьшаем ширину на ширину панели игроков */
-    height: calc(100vh - 94px);
+    height: calc(100vh - 84px);
     border: 1px solid #4682B4;
     border-radius: 10px;
     margin: 0;
-    gap: 100px;
     overflow: hidden;
 }
 
-
+canvas {
+    border: 1px solid #4682B4;
+}
 
 #online-players-panel {
     position: fixed; /* Фиксированное положение справа */
     right: 0;
-    top: 91px;
+    top: 81px;
     bottom: 0;
     width: 200px; /* Ширина панели */
     background-color: rgba(0, 0, 0, 0.8); /* Цвет фона */
@@ -361,7 +361,7 @@ button:hover {
     width: 100%; /* Полная ширина */
     height: 100%; /* Полная высота */
     overflow: auto; /* Включить прокрутку, если нужно */
-    background-color: rgba(0, 0, 0, 0.2); /* Черный фон с прозрачностью */
+    background-color: rgba(0, 0, 0, 0.5); /* Черный фон с прозрачностью */
   }
   
 .modal-content {
@@ -393,4 +393,37 @@ button:hover {
     padding: 5px;
     border: 1px solid #87CEEB; /* Голубая граница вокруг имени соперника */
     margin: 0 5px; /* Небольшой отступ вокруг имени соперника */
+}
+
+#playerInGameContainer {
+    display: flex;
+    flex-direction: column;
+    width: 500px;
+}
+
+.playerOneGameContainer {
+    margin-left: 100px;
+}
+
+.playerTwoGameContainer {
+    margin-right: 300px;
+}
+
+#playerOneLogin {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #87CEEB;
+    margin: 5px;
+}
+
+#playerTwoLogin {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #87CEEB;
+    padding: 2px;
+    margin: 5px;
+    font-weight: bold; 
+    color: #87CEEB;
 }

@@ -33,7 +33,7 @@ window.onload = function() {
         restoreUIState(false);
     }
     setupWebSocket(); // Установка WebSocket соединения и обработчиков событий
-    createModalWindow();
+    createStartGameModalWindow();
     setupEventHandlers();
 };
 
@@ -221,7 +221,7 @@ function setupEventHandlers() {
     const authForm = document.getElementById('auth-form');
     const registerForm = document.getElementById('register-form');
     const singButtonsContainer = document.getElementById('sign-buttons-container');
-    const declineButton = document.getElementById('declineButton'); 
+    const declineButton = document.getElementById('declineButton');
 
     // Обработчик для кнопки "Вход"
     signInButton.addEventListener('click', () => {
@@ -501,6 +501,8 @@ function updateOnlinePlayers() {
 }
 
 function sendInvitation(playerId, playerLogin) {
+    const myId = localStorage.getItem('userId');
+
     // Предотвращаем клики по игрокам во время игры
     if (isGameActive) {
         console.log("Игра уже идет. Клики по игрокам заблокированы.");
@@ -508,6 +510,7 @@ function sendInvitation(playerId, playerLogin) {
     }
     // Проверяем, получено ли приглашение от этого игрока
     if (invitationReceivedFrom(playerId)) {
+        localStorage.setItem('player_one_id', playerId);
         console.log(`Проверяем, что получено приглашение от ${playerLogin}`);
         acceptInvitationEvent(playerId, playerLogin);
     } else {
@@ -524,6 +527,8 @@ function sendInvitation(playerId, playerLogin) {
                 alert("Вы не можете отправить более трех приглашений.");
                 return;
             }
+
+            localStorage.setItem('player_one_id', myId);
 
             console.log(`Вызываем событие sendInvitation`);
             // Отправляем приглашение игроку с playerId через WebSocket
@@ -740,10 +745,10 @@ function startGame() {
     gameInstance = new Game(currentOpponentId, socket);
     console.log(`Start playing...`);
     gameInstance.start();
-    gameInstance.sendGameState();
+    gameInstance.sendGameState(false);
 }
 
-function createModalWindow() {
+function createStartGameModalWindow() {
     // Создаем основной контейнер модального окна
     const modal = document.createElement('div');
     modal.id = 'invitationModal';
@@ -807,6 +812,7 @@ function showInvitationModal(opponentName) {
     const opponentLogin = document.getElementById('opponentLogin');
     const countdownElement = document.getElementById('countdown');
     const modalContent = document.getElementById("modal-content");
+    const userLogin = localStorage.getItem('userLogin');
 
     // Установка имени соперника и показ модального окна
     opponentLogin.textContent = opponentName;
@@ -823,16 +829,106 @@ function showInvitationModal(opponentName) {
             clearInterval(countdownInterval);
             invitationModal.style.display = 'none';
             modalContent.style.display = 'none';
+            localStorage.setItem('game_startTime', new Date().toISOString());
             // Здесь можно добавить логику начала игры
+            const gameContainer = document.getElementById('game-container');
+            if (gameContainer) {
+                gameContainer.style.display = 'flex'; // Или другой подходящий стиль отображения
+            }
             startGame();
+            updatePlayerLogins(opponentName, userLogin);
         }
     }, 1000);
 }
 
-// Слушатель события завершения игры
-document.addEventListener("gameEnd", function() {
-    console.log("Игра закончилась. Обновляем рейтинг и статистику.");
+// Функция добавления логинов над стаканами
+function updatePlayerLogins(playerOneLogin, playerTwoLogin) {
+    const playerOneLoginElement = document.getElementById('playerOneLogin');
+    const playerTwoLoginElement = document.getElementById('playerTwoLogin');
+
+    if (playerOneLoginElement && playerTwoLoginElement) {
+        playerOneLoginElement.textContent = playerOneLogin;
+        playerTwoLoginElement.textContent = playerTwoLogin;
+    }
+}
+
+// Обработчик события 'gameOver' с сервера
+socket.on('gameOver', (data) => {
+    console.log(`Начало обработки события gameOver`)
     isGameActive = false;
-    // Здесь код для обновления рейтинга и статистики игроков
+    currentOpponentId = null;
+    gameInstance.stop();
+
+    const result = data.result;
+    const ratingChange = data.ratingChange;
+
+    // Вызов функции создания модального окна с передачей текста и информации о рейтинге
+    createEndGameModalWindow(result, ratingChange);
 });
 
+function createEndGameModalWindow(result, ratingChange) {
+    console.log(`Запускаем модалку EndGameModal`);
+
+    // Создаем основной контейнер модального окна
+    const modal = document.createElement('div');
+    modal.id = 'endGameModal';
+    modal.className = 'modal';
+    modal.style.display = 'block';
+
+    // Создаем контент модального окна
+    const modalContent = document.createElement('div');
+    modalContent.id = 'modal-content';
+    modalContent.className = 'modal-content';
+    modalContent.style.display = 'flex';
+
+    // Создаем span с текстом результата игры
+    const resultText = document.createElement('div');
+    resultText.id = 'resultText';
+    resultText.textContent = result;
+
+    // Создаем span с указанием изменения рейтинга
+    const ratingChangeText = document.createElement('div');
+    ratingChangeText.id = 'ratingChangeText';
+    ratingChangeText.textContent = ratingChange;
+
+    const buttonContainer = document.createElement('div');
+
+    // Создаем кнопку закрытия модального окна
+    const closeEndGameModalButton = document.createElement('button');
+    closeEndGameModalButton.id = 'closeEndGameModalButton';
+    closeEndGameModalButton.textContent = 'Close';
+
+    // Сокрытие игровых контейнеров игроков
+    const playerOneContainer = document.getElementById('playerOneContainer');
+    if (playerOneContainer) {
+        playerOneContainer.style.display = 'none';
+    }
+    const playerTwoContainer = document.getElementById('playerOneContainer');
+    if (playerTwoContainer) {
+        playerTwoContainer.style.display = 'none';
+    }
+    // const gameContainer = document.getElementById('game-container');
+    // if (gameContainer) {
+    //     gameContainer.style.display = 'none';
+    // }
+
+    // Добавляем кнопку в ее контейнер
+    buttonContainer.appendChild(closeEndGameModalButton);
+
+    // Собираем все части вместе
+    modalContent.appendChild(resultText);
+    modalContent.appendChild(ratingChangeText);
+    modalContent.appendChild(buttonContainer);
+    modal.appendChild(modalContent);
+
+    // Добавляем модальное окно в body
+    document.body.appendChild(modal);
+
+    
+    // Обработчик события для кнопки закрытия окна конца игры
+    closeEndGameModalButton.addEventListener('click', () => {
+        const myId = localStorage.getItem('userId');
+        showGameInterface(myId);
+        modal.remove();
+    });
+}

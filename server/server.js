@@ -8,7 +8,8 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const https = require('https');
 
-const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers, getUserStats, getLoginById } = require('./db');
+const { findUser, createUser, updateUserOnlineStatus, validateUser, getAllOnlinePlayers, 
+    getUserStats, getLoginById, updatePlayerStats, addGameRecord } = require('./db');
 
 const app = express();
 const port = 8765;
@@ -233,22 +234,72 @@ io.on('connection', (socket) => {
         io.to(recipientSocketId).emit('gameDeclined');
     });
 
-    socket.on('gameStateUpdate', (data) => {
-        const { opponentId, gameState } = data;
+    socket.on('gameStateUpdate', async (data) => {
+        const { myId, opponentId, gameState, isGameOver, playerOneId, gameStartTime } = data;
         const opponentSocketId = userSockets[opponentId]; // Находим ID сокета соперника
-        if (opponentSocketId) {
-            // Пересылаем состояние игры сопернику
-            io.to(opponentSocketId).emit('opponentGameStateUpdate', { gameState: gameState });
-        } else {
-            // Обработка случая, когда сокет соперника не найден
-            console.log(`Socket ID for opponent ${opponentId} not found.`);
+        if (isGameOver) {
+            console.log(`**********GAME OVER**********`);
+            const currentTime = new Date();
+            const gameEndTime = Math.floor(currentTime.getTime() / 1000); // Преобразование в timestamp в секундах
+
+            const loserSocket = socket;
+            const winnerSocket = findSocketByUserId(opponentId);
+
+            const loserStats = await getUserStats(myId);
+            const loserCurrentRating = loserStats.rating;
+            console.log(`loserCurrentRating for ${myId}: ${loserCurrentRating}`);
+            const winnerStats = await getUserStats(opponentId);
+            const winnerCurrentRating = winnerStats.rating; // Используем opponentId для нахождения сокета победителя
+            console.log(`winnerCurrentRating for ${opponentId}: ${winnerCurrentRating}`);
+
+            const winnerNewRating = calculateNewRating(winnerCurrentRating, loserCurrentRating, true);
+            console.log(`winnerNewRating: ${winnerNewRating}`);
+            const loserNewRating = calculateNewRating(loserCurrentRating, winnerCurrentRating, false);
+            console.log(`loserNewRating: ${loserNewRating}`);
+
+            console.log(`передаем сигнал gameOver победителю на сокет ${winnerSocket.id}`);
+            io.to(winnerSocket.id).emit('gameOver', {
+                result: 'Congratulations! You win!',
+                ratingChange: `Rating: ${winnerCurrentRating} -> ${winnerNewRating}`
+            });
+            console.log(`передаем сигнал gameOver лузеру на сокет ${loserSocket.id}`);
+            io.to(loserSocket.id).emit('gameOver', {
+                result: 'Sorry! You lose!',
+                ratingChange: `Rating: ${loserCurrentRating} -> ${loserNewRating}`
+            });
+
+            // Обновляем статистику игроков в БД
+            await updatePlayerStats(opponentId, true, winnerNewRating);
+            await updatePlayerStats(myId, false, loserNewRating);
+
+            // Добавляем запись о прошедшей игре
+            const playerTwoId = playerOneId !== myId ? myId : opponentId;
+            const status = playerOneId !== myId ? "win" : "lose";
+            await addGameRecord(playerOneId, playerTwoId, gameStartTime, gameEndTime, status);
         }
+        // Пересылаем состояние игры сопернику
+        io.to(opponentSocketId).emit('opponentGameStateUpdate', { gameState: gameState });
     });
 
     // Функция для поиска сокета по userId
     function findSocketByUserId(userId) {
         const socketId = userSockets[userId];
         return io.sockets.sockets.get(socketId);
+    }
+
+    // Функция для добавления записи о прошедшей игре
+    async function addGameRecord() {
+
+    }
+
+    // Функция для расчета рейтинга
+    function calculateNewRating(currentRating, opponentRating, isWin) {
+        const K = 10; // Примерное значение коэффициента K
+        const S = isWin ? 1 : 0; // 1 если победа, 0 если поражение
+        const E = 1 / (1 + Math.pow(10, (opponentRating - currentRating) / 400));
+
+        const newRating = currentRating + K * (S - E);
+        return Math.round(newRating); // Округляем до ближайшего целого
     }
  
     // Другие обработчики событий...

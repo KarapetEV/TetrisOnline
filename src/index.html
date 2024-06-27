@@ -57,8 +57,14 @@
         </div>
         <div id="game-interface" style="display: none;">
             <div id="game-container" style="display: flex;">
-                <canvas id="opponentCanvas" willReadFrequently="true" width="350" height="500"></canvas> <!-- Canvas соперника -->
-                <canvas id="playerCanvas" willReadFrequently="true" width="350" height="500"></canvas> <!-- Ваш canvas -->
+                <div id="playerInGameContainer" class="playerOneGameContainer">
+                    <span id="playerOneLogin" class="playerInGameLogin">Player 1</span>
+                    <canvas id="opponentCanvas" willReadFrequently="true" width="275" height="400"></canvas> <!-- Canvas соперника -->
+                </div>
+                <div id="playerInGameContainer" class="playerTwoGameContainer">
+                    <span id="playerTwoLogin" class="playerInGameLogin">Player 2</span>
+                    <canvas id="playerCanvas" willReadFrequently="true" width="350" height="500"></canvas> <!-- Ваш canvas -->
+                </div>
             </div>
         </div>
         <!-- Панель игроков онлайн -->

@@ -273,6 +273,14 @@ canvas {
     border: 1px solid #4682B4;
     border-radius: 10px;
     margin: 0;
+    transition: width 0.5s; /* Плавное изменение ширины за 0.5 секунды */
+}
+
+#online-players-panel.hide-panel {
+    width: 0; /* Скрываем панель */
+    padding: 0; /* Убираем отступы */
+    border: none; /* Убираем границу */
+    overflow: hidden; /* Скрытие содержимого */
 }
 
 #online-players-panel, .player-container, .player-login, .player-rating, .status-label {
@@ -387,6 +395,10 @@ canvas {
     width: 100%; /* Занимает всю ширину родителя */
     text-align: center; /* Центрирует содержимое, включая кнопку */
 }
+
+.modal-content p {
+    line-height: 1.5;
+}
   
 #opponentLogin {
     display: inline-block;
@@ -402,22 +414,24 @@ canvas {
 }
 
 .playerOneGameContainer {
-    margin-left: 100px;
+    margin-left: 300px;
 }
 
 .playerTwoGameContainer {
-    margin-right: 300px;
+    margin-right: 200px;
 }
 
-#playerOneLogin {
+#playerTwoLogin {
     display: flex;
     justify-content: center;
     align-items: center;
     color: #87CEEB;
+    border: 1px solid rgba(0, 0, 0, 0);
+    padding: 2px;
     margin: 5px;
 }
 
-#playerTwoLogin {
+#playerOneLogin {
     display: flex;
     justify-content: center;
     align-items: center;

@@ -276,6 +276,9 @@ io.on('connection', (socket) => {
             const playerTwoId = playerOneId !== myId ? myId : opponentId;
             const status = playerOneId !== myId ? "win" : "lose";
             await addGameRecord(playerOneId, playerTwoId, gameStartTime, gameEndTime, status);
+
+            // Отправляем обновленный список онлайн-игроков всем подключенным пользователям
+            sendOnlinePlayersDebounced();
         }
         // Пересылаем состояние игры сопернику
         io.to(opponentSocketId).emit('opponentGameStateUpdate', { gameState: gameState });

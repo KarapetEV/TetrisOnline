@@ -193,6 +193,13 @@ function showGameInterface(userId) {
 
     // Обновляем статус пользователя на онлайн
     setUserOnline(userId);
+
+    const inGameRefresh = localStorage.getItem('inGameRefresh') === 'true';
+    console.log(`Проверка переменной inGameRefresh: ${inGameRefresh}`);
+    if (inGameRefresh) {
+        console.log(`Создаем модалку для Refresh`);
+        createRefreshPageModalWindow();
+    }
 }
 
 function showAuthButtons() {
@@ -222,6 +229,11 @@ function setupEventHandlers() {
     const registerForm = document.getElementById('register-form');
     const singButtonsContainer = document.getElementById('sign-buttons-container');
     const declineButton = document.getElementById('declineButton');
+    const playButton = document.getElementById('play-button');
+
+    playButton.addEventListener('click', () => {
+        startGame();
+    });
 
     // Обработчик для кнопки "Вход"
     signInButton.addEventListener('click', () => {
@@ -429,6 +441,11 @@ function setupWebSocket() {
 
     // Обработка события закрытия страницы/вкладки для корректного отключения от WebSocket сервера
     window.addEventListener('beforeunload', () => {
+        if (isGameActive) {
+            localStorage.setItem('inGameRefresh', 'true');
+            gameInstance.gameOver();
+        }
+
         const userId = localStorage.getItem('userId'); // Получаем userId из localStorage
         if (userId) {
             socket.emit('logout', userId); // Уведомляем сервер о выходе пользователя
@@ -452,6 +469,9 @@ function updateOnlinePlayers() {
     console.log(`Всего получегно приглашений: ${receivedInvitations.length}`);
     const players = onlinePlayersList;
     console.log(`Список игроков в updateOnlinePlayers: ${players}`);
+
+    // Сортировка игроков по рейтингу (от большего к меньшему)
+    players.sort((a, b) => b.rating - a.rating);
 
     // Получаем контейнер для списка игроков
     const playersListContainer = document.getElementById('players-list-container');
@@ -835,8 +855,13 @@ function showInvitationModal(opponentName) {
             if (gameContainer) {
                 gameContainer.style.display = 'flex'; // Или другой подходящий стиль отображения
             }
+            // Добавляем класс для скрытия панели при начале игры
+            const panel = document.getElementById('online-players-panel');
+            panel.classList.add('hide-panel');
+
             startGame();
             updatePlayerLogins(userLogin, opponentName);
+            showPlayerContainers();
         }
     }, 1000);
 }
@@ -858,7 +883,7 @@ socket.on('gameOver', (data) => {
     isGameActive = false;
     currentOpponentId = null;
     gameInstance.stop();
-
+    clearPlayerContainers();
     const result = data.result;
     const ratingChange = data.ratingChange;
 
@@ -867,6 +892,10 @@ socket.on('gameOver', (data) => {
 });
 
 function createEndGameModalWindow(result, ratingChange) {
+    // Добавляем класс для скрытия панели при начале игры
+    const panel = document.getElementById('online-players-panel');
+    panel.classList.remove('hide-panel');
+    
     console.log(`Запускаем модалку EndGameModal`);
 
     // Создаем основной контейнер модального окна
@@ -882,12 +911,12 @@ function createEndGameModalWindow(result, ratingChange) {
     modalContent.style.display = 'flex';
 
     // Создаем span с текстом результата игры
-    const resultText = document.createElement('div');
+    const resultText = document.createElement('p');
     resultText.id = 'resultText';
     resultText.textContent = result;
 
     // Создаем span с указанием изменения рейтинга
-    const ratingChangeText = document.createElement('div');
+    const ratingChangeText = document.createElement('p');
     ratingChangeText.id = 'ratingChangeText';
     ratingChangeText.textContent = ratingChange;
 
@@ -907,10 +936,6 @@ function createEndGameModalWindow(result, ratingChange) {
     if (playerTwoContainer) {
         playerTwoContainer.style.display = 'none';
     }
-    // const gameContainer = document.getElementById('game-container');
-    // if (gameContainer) {
-    //     gameContainer.style.display = 'none';
-    // }
 
     // Добавляем кнопку в ее контейнер
     buttonContainer.appendChild(closeEndGameModalButton);
@@ -929,6 +954,63 @@ function createEndGameModalWindow(result, ratingChange) {
     closeEndGameModalButton.addEventListener('click', () => {
         const myId = localStorage.getItem('userId');
         showGameInterface(myId);
+        modal.remove();
+    });
+}
+
+function clearPlayerContainers() {
+    const playerContainers = document.querySelectorAll('#playerInGameContainer');
+    playerContainers.forEach(container => {
+        container.style.display = 'none'; // Скрытие блока
+    });
+};
+
+function showPlayerContainers() {
+    const playerContainers = document.querySelectorAll('#playerInGameContainer');
+    playerContainers.forEach(container => {
+        container.style.display = 'flex'; // Скрытие блока
+    });
+};
+
+function createRefreshPageModalWindow() {
+    console.log(`Запускаем модалку RefreshPage`);
+    localStorage.setItem('inGameRefresh', 'false');
+    // Создаем основной контейнер модального окна
+    const modal = document.createElement('div');
+    modal.id = 'refreshPageModal';
+    modal.className = 'modal';
+    modal.style.display = 'block';
+
+    // Создаем контент модального окна
+    const modalContent = document.createElement('div');
+    modalContent.id = 'modal-content';
+    modalContent.className = 'modal-content';
+    modalContent.style.display = 'flex';
+
+    // Создаем span с текстом результата игры
+    const warningText = document.createElement('p');
+    warningText.id = 'warningText';
+    warningText.innerHTML = "Предыдущий матч не был корректно завершен.<br>Вам засчитано поражение. Рейтинг пересчитан.";
+
+    const buttonContainer = document.createElement('div');
+
+    const closeRefreshWindowButton = document.createElement('button');
+    closeRefreshWindowButton.id = 'closeRefreshWindowButton';
+    closeRefreshWindowButton.textContent = 'Закрыть';
+
+    // Добавляем кнопки в ее контейнер
+    buttonContainer.appendChild(closeRefreshWindowButton);
+
+    // Собираем все части вместе
+    modalContent.appendChild(warningText);
+    modalContent.appendChild(buttonContainer);
+    modal.appendChild(modalContent);
+
+    // Добавляем модальное окно в body
+    document.body.appendChild(modal);
+    
+    // Обработчик события для кнопки закрытия окна конца игры
+    closeRefreshWindowButton.addEventListener('click', () => {
         modal.remove();
     });
 }

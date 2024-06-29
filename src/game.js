@@ -3,13 +3,13 @@ export class Game {
         this.opponentId = opponentId;
         this.socket = socket;
         this.canvas = document.getElementById('playerCanvas');
-        this.context = this.canvas.getContext('2d');
+        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
         // Добавляем канвас и контекст соперника
         this.opponentCanvas = document.getElementById('opponentCanvas');
-        this.opponentContext = this.opponentCanvas.getContext('2d');
+        this.opponentContext = this.opponentCanvas.getContext('2d', { willReadFrequently: true });
         // Добавляем канвас и контекст для фона
         this.backgroundCanvas = document.getElementById('backgroundCanvas');
-        this.backgroundContext = backgroundCanvas.getContext('2d');
+        this.backgroundContext = backgroundCanvas.getContext('2d', { willReadFrequently: true });
 
         this.rows = 20; // Количество строк
         this.columns = 10; // Количество столбцов
@@ -32,6 +32,13 @@ export class Game {
                 this.board[r][c] = ''; // Пустая ячейка
             }
         }
+    }
+
+    
+    start() {
+        this.draw();
+        this.spawnNewPiece();
+        this.update();
     }
 
     handleKeyPress(event) {
@@ -126,12 +133,6 @@ export class Game {
         }
         newShape.forEach(row => row.reverse());
         return newShape;
-    }
-
-    start() {
-        this.draw();
-        this.spawnNewPiece();
-        this.update();
     }
 
     spawnNewPiece() {
@@ -328,7 +329,7 @@ export class Game {
                 if (this.board[r][c] !== '') {
                     fillColor = this.board[r][c]; // Цвет заполненной ячейки
                 }
-                drawRoundedRect(this.backgroundContext, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
+                this.drawRoundedRect(this.backgroundContext, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
             }
         }
     }
@@ -406,7 +407,7 @@ export class Game {
                 if (this.board[r][c] !== '') {
                     fillColor = this.board[r][c]; // Цвет заполненной ячейки
                 }
-                drawRoundedRect(this.backgroundContext, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
+                this.drawRoundedRect(this.backgroundContext, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
             }
         }
 
@@ -416,7 +417,7 @@ export class Game {
             for (let r = 0; r < this.currentPiece.shape.length; r++) {
                 for (let c = 0; c < this.currentPiece.shape[r].length; c++) {
                     if (this.currentPiece.shape[r][c]) {
-                        drawRoundedRect(this.backgroundContext, (this.currentPiece.x + c) * this.cellSize, (this.currentPiece.y + r) * this.cellSize, this.cellSize, this.cellSize, 3, this.currentPiece.color, 'rgba(0, 0, 0, 0.9)');
+                        this.drawRoundedRect(this.backgroundContext, (this.currentPiece.x + c) * this.cellSize, (this.currentPiece.y + r) * this.cellSize, this.cellSize, this.cellSize, 3, this.currentPiece.color, 'rgba(0, 0, 0, 0.9)');
                     }
                 }
             }
@@ -485,6 +486,8 @@ export class Game {
         if (this.animationFrameId) {
             clearTimeout(this.animationFrameId); // Отменяем анимационный кадр
         }
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.opponentContext.clearRect(0, 0, this.opponentCanvas.width, this.opponentCanvas.height);
     }
 
     drawOpponentField(gameState) {

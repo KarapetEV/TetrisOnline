@@ -7,6 +7,9 @@ export class Game {
         // Добавляем канвас и контекст соперника
         this.opponentCanvas = document.getElementById('opponentCanvas');
         this.opponentContext = this.opponentCanvas.getContext('2d');
+        // Добавляем канвас и контекст для фона
+        this.backgroundCanvas = document.getElementById('backgroundCanvas');
+        this.backgroundContext = backgroundCanvas.getContext('2d');
 
         this.rows = 20; // Количество строк
         this.columns = 10; // Количество столбцов
@@ -19,7 +22,6 @@ export class Game {
         this.isGameOver = false;
         this.needsRedraw = true; // Флаг, указывающий на необходимость перерисовки
         this.cellSize = 25;
-        this.opponentCellSize = 20;
         this.nextPiece = null; // Следующая фигура
     }
 
@@ -222,9 +224,8 @@ export class Game {
     }
 
     drawNextPiece(context, nextPiece, offsetX, offsetY) {
-        const cellSize = context === this.context ? this.cellSize : this.opponentCellSize;
-        const panelWidth = 4 * cellSize; // Ширина панели, достаточная для отображения фигуры
-        const nextPieceBlockSize = 4 * cellSize; // Высота блока для следующей фигуры
+        const panelWidth = 4 * this.cellSize; // Ширина панели, достаточная для отображения фигуры
+        const nextPieceBlockSize = 4 * this.cellSize; // Высота блока для следующей фигуры
     
         // Очищаем область для следующей фигуры
         context.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Полупрозрачный фон
@@ -232,8 +233,8 @@ export class Game {
     
         if (nextPiece) {
             // Вычисляем смещение для центрирования следующей фигуры в блоке
-            const pieceOffsetX = offsetX + (panelWidth - nextPiece.shape[0].length * cellSize) / 2;
-            const pieceOffsetY = offsetY + (nextPieceBlockSize - nextPiece.shape.length * cellSize) / 2;
+            const pieceOffsetX = offsetX + (panelWidth - nextPiece.shape[0].length * this.cellSize) / 2;
+            const pieceOffsetY = offsetY + (nextPieceBlockSize - nextPiece.shape.length * this.cellSize) / 2;
     
             // Отрисовка следующей фигуры
             context.fillStyle = nextPiece.color;
@@ -242,10 +243,10 @@ export class Game {
                     if (nextPiece.shape[r][c]) {
                         this.drawRoundedRect(
                             context,
-                            pieceOffsetX + c * cellSize,
-                            pieceOffsetY + r * cellSize,
-                            cellSize,
-                            cellSize,
+                            pieceOffsetX + c * this.cellSize,
+                            pieceOffsetY + r * this.cellSize,
+                            this.cellSize,
+                            this.cellSize,
                             3,
                             nextPiece.color,
                             '#87CEEB'
@@ -315,15 +316,31 @@ export class Game {
         this.context.strokeRect(panelX, 0, panelWidth, panelHeight); // Рисуем прямоугольник вокруг панели
     }
 
+    // Функция для отрисовки фона стакана на отдельном канвасе
+    drawBackground() {
+        // Очистка канваса
+        this.backgroundContext.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+
+        // Отрисовка фона стакана
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.columns; c++) {
+                let fillColor = 'rgba(0, 0, 0, 0.7)'; // Цвет пустой ячейки
+                if (this.board[r][c] !== '') {
+                    fillColor = this.board[r][c]; // Цвет заполненной ячейки
+                }
+                drawRoundedRect(this.backgroundContext, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
+            }
+        }
+    }
+
     drawBorder(context) {
-        const cellSize = context === this.context ? this.cellSize : this.opponentCellSize;
         // Устанавливаем цвет границы стакана
         context.strokeStyle = '#87CEEB';
         // Устанавливаем толщину линии для границы
         context.lineWidth = 2;
         // Рисуем прямоугольник вокруг стакана
         // Предполагаем, что отступ от краев канваса составляет 1 размер ячейки, отсюда и -2 и +4 в расчетах
-        context.strokeRect(1, 1, this.columns * cellSize - 2, this.rows * cellSize - 2);
+        context.strokeRect(1, 1, this.columns * this.cellSize - 2, this.rows * this.cellSize - 2);
     }
 
     drawRoundedRect(context, x, y, width, height, radius, fillColor, strokeColor) {
@@ -375,6 +392,35 @@ export class Game {
         }
 
         this.animationFrameId = setTimeout(this.update.bind(this), 0);
+    }
+
+    // Функция для обновления фона на отдельном канвасе при изменении фигуры
+    updateBackground() {
+        // Очистка канваса
+        this.backgroundContext.clearRect(0, 0, this.backgroundCanvas.width, this.backgroundCanvas.height);
+
+        // Обновление только соответствующей части фона на отдельном канвасе
+        for (let r = 0; r < this.board.length; r++) {
+            for (let c = 0; c < this.board[r].length; c++) {
+                let fillColor = 'rgba(0, 0, 0, 0.7)'; // Цвет пустой ячейки
+                if (this.board[r][c] !== '') {
+                    fillColor = this.board[r][c]; // Цвет заполненной ячейки
+                }
+                drawRoundedRect(this.backgroundContext, c * this.cellSize, r * this.cellSize, this.cellSize, this.cellSize, 3, fillColor, '#87CEEB'); // Размер ячейки 25x25
+            }
+        }
+
+        // Обновление фигуры на фоне (если необходимо)
+        if (this.currentPiece) {
+            this.backgroundContext.fillStyle = this.currentPiece.color;
+            for (let r = 0; r < this.currentPiece.shape.length; r++) {
+                for (let c = 0; c < this.currentPiece.shape[r].length; c++) {
+                    if (this.currentPiece.shape[r][c]) {
+                        drawRoundedRect(this.backgroundContext, (this.currentPiece.x + c) * this.cellSize, (this.currentPiece.y + r) * this.cellSize, this.cellSize, this.cellSize, 3, this.currentPiece.color, 'rgba(0, 0, 0, 0.9)');
+                    }
+                }
+            }
+        }
     }
 
     freezePiece() {
@@ -455,10 +501,10 @@ export class Game {
                 }
                 this.drawRoundedRect(
                     this.opponentContext,
-                    c * this.opponentCellSize, // X координата блока
-                    r * this.opponentCellSize, // Y координата блока
-                    this.opponentCellSize,     // Ширина блока
-                    this.opponentCellSize,     // Высота блока
+                    c * this.cellSize, // X координата блока
+                    r * this.cellSize, // Y координата блока
+                    this.cellSize,     // Ширина блока
+                    this.cellSize,     // Высота блока
                     3, // Радиус закругления
                     fillColor, // Цвет заполненной ячейки
                     '#87CEEB' // Цвет границы блока
@@ -467,16 +513,16 @@ export class Game {
         }
         
         // Отрисовка боковой панели соперника
-        const panelX = this.columns * this.opponentCellSize; // X-координата начала панели
-        const panelWidth = 4 * this.opponentCellSize; // Ширина панели
-        const panelHeight = this.rows * this.opponentCellSize; // Высота панели
+        const panelX = this.columns * this.cellSize; // X-координата начала панели
+        const panelWidth = 4 * this.cellSize; // Ширина панели
+        const panelHeight = this.rows * this.cellSize; // Высота панели
 
         // Отрисовка фона панели
         this.opponentContext.fillStyle = 'rgba(0, 0, 0, 0.7)';
         this.opponentContext.fillRect(panelX, 0, panelWidth, panelHeight);
 
         // Отрисовка верхнего блока для следующей фигуры
-        const nextPieceBlockSize = 4 * this.opponentCellSize;
+        const nextPieceBlockSize = 4 * this.cellSize;
         this.opponentContext.fillStyle = 'rgba(0, 0, 0, 0.3)';
         this.opponentContext.fillRect(panelX, 0, panelWidth, nextPieceBlockSize);
 

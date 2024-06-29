@@ -836,7 +836,7 @@ function showInvitationModal(opponentName) {
                 gameContainer.style.display = 'flex'; // Или другой подходящий стиль отображения
             }
             startGame();
-            updatePlayerLogins(opponentName, userLogin);
+            updatePlayerLogins(userLogin, opponentName);
         }
     }, 1000);
 }

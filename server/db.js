@@ -163,7 +163,7 @@ async function updatePlayerStats(userId, isWinner, newRating) {
 async function addGameRecord(playerOneId, playerTwoId, startTime, endTime, status) {
     const client = await pool.connect();
     try {
-        const result = await client.query(`INSERT INTO games (player_one_id, player_two_id, start_time, end_time, status) VALUES ($1, $2, $3, $4, $5)`, [newRating, userId]);
+        const result = await client.query(`INSERT INTO games (player_one_id, player_two_id, start_time, end_time, status) VALUES ($1, $2, $3, $4, $5)`, [playerOneId, playerTwoId, startTime, endTime, status]);
         return result.rows[0];
     } catch (error) {
         console.error('Error in updatePlayerStats:', error);

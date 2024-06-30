@@ -16,7 +16,7 @@ export class Game {
         this.board = []; // Игровое поле
         this.initBoard();
         this.lastUpdateTime = Date.now();
-        this.updateInterval = 750; // Интервал обновления в миллисекундах (0,5 секунды)
+        this.updateInterval = 800; // Интервал обновления в миллисекундах
         this.animationFrameId = null;
         document.addEventListener('keydown', this.handleKeyPress.bind(this));
         this.isGameOver = false;
@@ -389,7 +389,7 @@ export class Game {
 
         // Отправляем состояние игры, если произошли значимые изменения
         if (stateChanged) {
-            this.sendGameState(false);
+            this.sendGameState(false, 0);
         }
 
         this.animationFrameId = setTimeout(this.update.bind(this), 0);
@@ -425,6 +425,8 @@ export class Game {
     }
 
     freezePiece() {
+        let linesCleared = 0;
+
         for (let r = 0; r < this.currentPiece.shape.length; r++) {
             for (let c = 0; c < this.currentPiece.shape[r].length; c++) {
                 // Пропускаем пустые ячейки фигуры
@@ -441,16 +443,18 @@ export class Game {
         }
     
         // Проверка на заполненные линии и их удаление
-        this.checkLines();
+        linesCleared = this.checkLines();
 
         // Отправляем обновленное состояние игры на сервер
-        this.sendGameState(false);
+        this.sendGameState(false, linesCleared);
 
         // Генерация новой фигуры
         this.spawnNewPiece();
     }
 
     checkLines() {
+        let linesCleared = 0; // Переменная для хранения количества убранных линий
+
         for (let r = this.rows - 1; r >= 0; r--) {
             if (this.board[r].every(cell => cell !== '')) {
                 // Удаляем заполненную линию
@@ -459,25 +463,20 @@ export class Game {
                 this.board.unshift(new Array(this.columns).fill(''));
                 // После удаления строки нужно проверить ту же строку еще раз, так как она сдвинулась вниз
                 r++;
+                linesCleared++; // Увеличиваем счетчик убранных линий
             }
         }
+        return linesCleared; // Возвращаем количество убранных линий
     }
 
     gameOver() {
         console.log("Game Over");
         this.isGameOver = true;
-        this.sendGameState(true);
+        this.sendGameState(true, 0);
 
         if (this.animationFrameId) {
             clearTimeout(this.animationFrameId); // Отменяем анимационный кадр
         }
-    }
-
-    // Генерация события завершения игры
-    endGame() {
-        // Генерация пользовательского события "gameEnd"
-        const event = new CustomEvent("gameEnd");
-        document.dispatchEvent(event);
     }
 
     // Функция остановки игры
@@ -547,7 +546,7 @@ export class Game {
         this.opponentContext.strokeRect(panelX, 0, panelWidth, panelHeight);
     }
 
-    sendGameState(isGameOver) {
+    sendGameState(isGameOver, linesCleared) {
         const gameState = this.getGameState(); // Получаем текущее состояние игры
 
         const myId = localStorage.getItem('userId');
@@ -555,7 +554,7 @@ export class Game {
         const gameStartTime = localStorage.getItem('game_startTime');
 
         this.socket.emit('gameStateUpdate', { myId: myId, opponentId: this.opponentId, gameState: gameState, 
-            isGameOver: isGameOver, playerOneId: playerOneId, gameStartTime: gameStartTime });
+            isGameOver: isGameOver, playerOneId: playerOneId, gameStartTime: gameStartTime, linesCleared: linesCleared });
 
         // Удаляем данные из localStorage после отправки
         localStorage.removeItem('player_one_id');
@@ -590,6 +589,16 @@ export class Game {
             boardState: state,
             nextPiece: nextPieceState
         };
+    }
+
+    // Функция для генерации строки с рандомными пустыми ячейками
+    generateRandomRow() {
+        const row = [];
+        for (let i = 0; i < this.canvas.width; i++) {
+            // Генерация случайного значения для пустой ячейки (например, 0 - пусто, 1 - заполнено)
+            row.push(Math.random() < 0.5 ? 0 : 1);
+        }
+        return row;
     }
 }
 

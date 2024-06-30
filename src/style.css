@@ -26,6 +26,7 @@ header {
     background: rgba(0, 0, 0, 0.8);
     height: 70px;
     border: 1px solid #4682B4;
+    border-radius: 10px;
 }
 
 .header-block {
@@ -248,11 +249,12 @@ button:hover {
     justify-content: space-between;
     align-items: center;
     width: calc(100vw - 200px); /* Уменьшаем ширину на ширину панели игроков */
-    height: calc(100vh - 84px);
+    height: calc(100vh - 99px);
     border: 1px solid #4682B4;
     border-radius: 10px;
     margin: 0;
     overflow: hidden;
+    transition: width 0.3s;
 }
 
 canvas {
@@ -262,8 +264,8 @@ canvas {
 #online-players-panel {
     position: fixed; /* Фиксированное положение справа */
     right: 0;
-    top: 81px;
-    bottom: 0;
+    top: 81px; /* Отступ сверху от header */
+    bottom: 15px; /* Отступ снизу от footer */
     width: 200px; /* Ширина панели */
     background-color: rgba(0, 0, 0, 0.8); /* Цвет фона */
     color: #87CEEB;
@@ -273,7 +275,7 @@ canvas {
     border: 1px solid #4682B4;
     border-radius: 10px;
     margin: 0;
-    transition: width 0.5s; /* Плавное изменение ширины за 0.5 секунды */
+    transition: width 0.3s; /* Плавное изменение ширины за 0.5 секунды */
 }
 
 #online-players-panel.hide-panel {
@@ -336,29 +338,6 @@ canvas {
     color: #FFF;
 }
 
-#user-stats-container {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr)); /* Две колонки */
-    grid-template-rows: auto auto; /* Две строки, высота по содержимому */
-    gap: 10px; /* Отступы между ячейками */
-    justify-content: center; /* Центрируем сетку по горизонтали */
-    align-items: center; /* Выравниваем элементы по вертикали */
-    padding: 10px; /* Паддинг вокруг сетки */
-    width: auto; /* Ширина по содержимому */
-    margin: 0 auto; /* Центрирование контейнера внутри родителя */
-    margin-right: 150px;
-}
-
-.stats-cell {
-    color: #87CEEB;
-    font-size: 12px;
-    font-weight: bold;
-    padding: 3px 10px; /* Уменьшенный паддинг внутри ячеек */
-    text-align: center; /* Текст по центру */
-    border-radius: 5px; /* Скругление углов */
-    margin-bottom: 0;
-}
-
 /* Стили для модального окна */
 .modal {
     display: none; /* Скрыть модальное окно по умолчанию */
@@ -418,7 +397,7 @@ canvas {
 }
 
 .playerTwoGameContainer {
-    margin-right: 200px;
+    margin-right: 150px;
 }
 
 #playerTwoLogin {
@@ -440,4 +419,40 @@ canvas {
     margin: 5px;
     font-weight: bold; 
     color: #87CEEB;
+}
+
+
+#user-stats-container {
+    display: inline-block; /* Используем flexbox для размещения элементов в одну строку */
+    justify-content: center; /* Центрирование элементов по горизонтали */
+    align-items: center; /* Выравниваем элементы по вертикали */
+    padding: 0; /* Паддинг вокруг элементов */
+    width: 100%; /* Ширина по содержимому */
+    margin: 0 auto; /* Центрирование контейнера внутри родителя */
+    font-size: 13px;
+    font-weight: bold;
+}
+
+#user-stats-container span {
+    margin: 0 25px; /* Отступы между показателями */
+}
+
+footer {
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.9); /* Цвет фона */
+    border: 1px solid #4682B4;
+    border-radius: 10px;
+    color: #87CEEB; /* Цвет текста */
+    padding: 0; /* Внутренний отступ */
+    position: fixed; /* Фиксированное положение внизу */
+    left: 0;
+    bottom: 0;
+    width: 100%; /* Ширина на всю ширину экрана */
+    height: 15px;
+    text-align: center; /* Выравнивание текста по центру */
+}
+
+.footer-statistics {
+    display: inline-block; /* Отображение в одну строку */
+    padding: 5px; /* Внутренний отступ */
 }

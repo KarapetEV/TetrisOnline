@@ -103,7 +103,7 @@ function initializeHeader(isLoggedIn) {
     headerElement.appendChild(logoContainer);
     headerElement.appendChild(buttonsContainer);
 
-    createUserStatsContainer();
+    // createUserStatsContainer();
     initOnlinePlayersPanel();
     updateHeader(isLoggedIn);
 }
@@ -134,12 +134,10 @@ function updateHeader(isLoggedIn) {
     const userStatsContainer = document.getElementById('user-stats-container');
 
     if (isLoggedIn) {
-        userStatsContainer.style.display = 'grid';
         signButtonsContainer.style.display = 'none';
         logoutButtonContainer.style.display = 'flex';
 
     } else {
-        userStatsContainer.style.display = 'none';
         signButtonsContainer.style.display = 'flex';
         logoutButtonContainer.style.display = 'none'; // Изначально скрыт
     }
@@ -673,8 +671,9 @@ socket.on('gameDeclined', () => {
 });
 
 socket.on('opponentGameStateUpdate', (data) => {
-    const { gameState } = data;
+    const { gameState, linesCleared } = data;
     if (gameInstance) {
+        localStorage.setItem('linesCleared', linesCleared);
         gameInstance.drawOpponentField(gameState); // Обновление поля соперника
     }
 });
@@ -723,40 +722,26 @@ function logout() {
     socket.disconnect();
 }
 
-function createUserStatsContainer() {
-    const userStatsContainer = document.createElement('div');
-    userStatsContainer.id = 'user-stats-container';
-    userStatsContainer.style.display = 'grid'; // Изначально скрыт
-
-
-    // Создаем ячейки для статистики
-    const totalGames = document.createElement('div');
-    totalGames.className = 'stats-cell'; // Применяем класс
-    const totalWins = document.createElement('div');
-    totalWins.className = 'stats-cell'; // Применяем класс
-    const userRank = document.createElement('div');
-    userRank.className = 'stats-cell'; // Применяем класс
-    const totalLoses = document.createElement('div');
-    totalLoses.className = 'stats-cell'; // Применяем класс
-
-    // Добавляем ячейки в контейнер статистики
-    userStatsContainer.appendChild(totalGames);
-    userStatsContainer.appendChild(totalWins);
-    userStatsContainer.appendChild(userRank);
-    userStatsContainer.appendChild(totalLoses);
-
-    // Добавляем контейнер статистики в DOM
-    const header = document.getElementById('header');
-    const buttonsContainer = document.getElementById('buttons-container');
-    header.insertBefore(userStatsContainer, buttonsContainer); // Вставляем перед buttons-container
-}
-
 function updateAndShowUserStats(total, win, rank, lose) {
-    // Обновляем статистику пользователя
-    document.querySelector('#user-stats-container div:nth-child(1)').textContent = `TOTAL: ${total}`;
-    document.querySelector('#user-stats-container div:nth-child(2)').textContent = `WIN: ${win}`;
-    document.querySelector('#user-stats-container div:nth-child(3)').textContent = `RANK: ${rank}`;
-    document.querySelector('#user-stats-container div:nth-child(4)').textContent = `LOSE: ${lose}`;
+    // Обновляем статистику пользователя в футере
+    const footerStatsContainer = document.getElementById('user-stats-container');
+
+    const totalElement = document.createElement('span');
+    totalElement.textContent = `TOTAL: ${total}`;
+    const winElement = document.createElement('span');
+    winElement.textContent = `WIN: ${win}`;
+    const rankElement = document.createElement('span');
+    rankElement.textContent = `RANK: ${rank}`;
+    const loseElement = document.createElement('span');
+    loseElement.textContent = `LOSE: ${lose}`;
+
+    // Очистка содержимого контейнера перед добавлением новых элементов
+    footerStatsContainer.innerHTML = '';
+    // Добавление отдельных элементов в контейнер
+    footerStatsContainer.appendChild(winElement);
+    footerStatsContainer.appendChild(loseElement);
+    footerStatsContainer.appendChild(totalElement);
+    footerStatsContainer.appendChild(rankElement);
 }
 
 // Функция для начала игры
@@ -855,9 +840,7 @@ function showInvitationModal(opponentName) {
             if (gameContainer) {
                 gameContainer.style.display = 'flex'; // Или другой подходящий стиль отображения
             }
-            // Добавляем класс для скрытия панели при начале игры
-            const panel = document.getElementById('online-players-panel');
-            panel.classList.add('hide-panel');
+            hidePlayerPanel();
 
             startGame();
             updatePlayerLogins(userLogin, opponentName);
@@ -887,14 +870,22 @@ socket.on('gameOver', (data) => {
     const result = data.result;
     const ratingChange = data.ratingChange;
 
+    if (data && data.stats) {
+        console.log(`Success! data: ${data}, stats:${data.stats}`);
+        localStorage.setItem('userTotalGames', data.stats.total);
+        localStorage.setItem('userWins', data.stats.win);
+        localStorage.setItem('userRank', data.stats.rating);
+        localStorage.setItem('userLoses', data.stats.lose);
+    } else {
+        console.log(`Fail! data: ${data}, stats:${data.stats}`);
+    }
+
     // Вызов функции создания модального окна с передачей текста и информации о рейтинге
     createEndGameModalWindow(result, ratingChange);
 });
 
 function createEndGameModalWindow(result, ratingChange) {
-    // Добавляем класс для скрытия панели при начале игры
-    const panel = document.getElementById('online-players-panel');
-    panel.classList.remove('hide-panel');
+    showPlayerPanel();
     
     console.log(`Запускаем модалку EndGameModal`);
 
@@ -964,6 +955,24 @@ function clearPlayerContainers() {
         container.style.display = 'none'; // Скрытие блока
     });
 };
+
+// Функция для скрытия боковой панели и изменения ширины game-container
+function hidePlayerPanel() {
+    const panel = document.getElementById('online-players-panel');
+    panel.classList.add('hide-panel');
+
+    const gameContainer = document.getElementById('game-container');
+    gameContainer.style.width = '100vw'; // Расширяем game-container на всю ширину
+}
+
+// Функция для отображения боковой панели и восстановления ширины game-container
+function showPlayerPanel() {
+    const panel = document.getElementById('online-players-panel');
+    panel.classList.remove('hide-panel');
+
+    const gameContainer = document.getElementById('game-container');
+    gameContainer.style.width = 'calc(100vw - 200px)'; // Восстанавливаем ширину game-container
+}
 
 function showPlayerContainers() {
     const playerContainers = document.querySelectorAll('#playerInGameContainer');

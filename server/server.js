@@ -235,7 +235,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('gameStateUpdate', async (data) => {
-        const { myId, opponentId, gameState, isGameOver, playerOneId, gameStartTime } = data;
+        const { myId, opponentId, gameState, isGameOver, playerOneId, gameStartTime, linesCleared } = data;
         const opponentSocketId = userSockets[opponentId]; // Находим ID сокета соперника
         if (isGameOver) {
             console.log(`**********GAME OVER**********`);
@@ -260,12 +260,14 @@ io.on('connection', (socket) => {
             console.log(`передаем сигнал gameOver победителю на сокет ${winnerSocket.id}`);
             io.to(winnerSocket.id).emit('gameOver', {
                 result: 'Congratulations! You win!',
-                ratingChange: `Rating: ${winnerCurrentRating} -> ${winnerNewRating}`
+                ratingChange: `Rating: ${winnerCurrentRating} -> ${winnerNewRating}`,
+                stats: winnerStats
             });
             console.log(`передаем сигнал gameOver лузеру на сокет ${loserSocket.id}`);
             io.to(loserSocket.id).emit('gameOver', {
                 result: 'Sorry! You lose!',
-                ratingChange: `Rating: ${loserCurrentRating} -> ${loserNewRating}`
+                ratingChange: `Rating: ${loserCurrentRating} -> ${loserNewRating}`,
+                stats: loserStats
             });
 
             // Обновляем статистику игроков в БД
@@ -281,18 +283,13 @@ io.on('connection', (socket) => {
             sendOnlinePlayersDebounced();
         }
         // Пересылаем состояние игры сопернику
-        io.to(opponentSocketId).emit('opponentGameStateUpdate', { gameState: gameState });
+        io.to(opponentSocketId).emit('opponentGameStateUpdate', { gameState: gameState, linesCleared: linesCleared });
     });
 
     // Функция для поиска сокета по userId
     function findSocketByUserId(userId) {
         const socketId = userSockets[userId];
         return io.sockets.sockets.get(socketId);
-    }
-
-    // Функция для добавления записи о прошедшей игре
-    async function addGameRecord() {
-
     }
 
     // Функция для расчета рейтинга
